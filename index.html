@@ -345,7 +345,26 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
       <input type="text" id="share-link-output" readonly onclick="this.select()">
       <button class="share-modal-btn secondary" onclick="copyShareLink()">📋 Copier le lien</button>
     </div>
+    <hr style="border:none;border-top:1px solid #30363d;margin:4px 0">
+    <p class="share-modal-desc" style="margin-bottom:-2px">Pour synchroniser entre tes appareils via Drive/Dropbox :</p>
+    <button class="share-modal-btn" onclick="exportToFileEncrypted()">🔒 Sauvegarde chiffrée (fichier à déposer sur Drive)</button>
+    <hr style="border:none;border-top:1px solid #30363d;margin:4px 0">
+    <p class="share-modal-desc" style="margin-bottom:-2px">Toujours le même fichier sur ton Drive (via ton Sheet) — pratique à deux :</p>
+    <button class="share-modal-btn" onclick="pushBackupToDrive()">🔒📤 Envoyer vers Drive</button>
+    <button class="share-modal-btn" onclick="pullBackupFromDrive()">🔒📥 Récupérer depuis Drive</button>
     <button class="share-modal-btn secondary" onclick="closeShareModal()">Fermer</button>
+  </div>
+</div>
+
+<!-- MODALE MOT DE PASSE (chiffrement / déchiffrement) -->
+<div id="password-modal" class="share-modal-overlay" onclick="if(event.target===this) cancelPasswordPrompt()">
+  <div class="share-modal">
+    <h3 id="password-modal-title">🔒 Mot de passe</h3>
+    <p class="share-modal-desc" id="password-modal-msg"></p>
+    <input type="password" id="password-modal-input" placeholder="Mot de passe" autocomplete="off"
+      style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:8px;padding:10px 12px;font-size:.9rem">
+    <button class="share-modal-btn" onclick="confirmPasswordPrompt()">✅ Valider</button>
+    <button class="share-modal-btn secondary" onclick="cancelPasswordPrompt()">Annuler</button>
   </div>
 </div>
 
@@ -1428,18 +1447,123 @@ function importFromFile(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
+    let data;
     try {
-      const data = JSON.parse(e.target.result);
-      applyImportedData(data);
-      refreshAfterImport();
-      showSaveStatus('📥 Simulation importée (pense à sauvegarder 💾)', true);
+      const raw = JSON.parse(e.target.result);
+      if (raw && raw.enc === true) {
+        const pw = await customPasswordPrompt('🔒 Sauvegarde chiffrée', 'Entre le mot de passe utilisé pour créer ce fichier.');
+        if (!pw) { event.target.value = ''; return; }
+        try {
+          const plain = await decryptData(raw, pw);
+          data = JSON.parse(plain);
+        } catch (err) {
+          alert('Mot de passe incorrect (ou fichier corrompu).');
+          event.target.value = '';
+          return;
+        }
+      } else {
+        data = raw;
+      }
     } catch(err) {
       alert('Fichier invalide : ' + err.message);
+      event.target.value = '';
+      return;
     }
+    applyImportedData(data);
+    refreshAfterImport();
+    showSaveStatus('📥 Simulation importée (pense à sauvegarder 💾)', true);
+    event.target.value = '';
   };
   reader.readAsText(file);
-  event.target.value = '';
+}
+
+// ══════════════════════════════════════════
+// CHIFFREMENT (Web Crypto API — AES-256-GCM + PBKDF2)
+// Le fichier exporté est illisible sans le mot de passe.
+// Rien n'est envoyé nulle part : tout se passe dans le navigateur.
+// ══════════════════════════════════════════
+function buf2b64(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function b642buf(b64) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr.buffer;
+}
+
+async function deriveKey(password, saltBuf) {
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: saltBuf, iterations: 150000, hash: 'SHA-256' },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptData(plainText, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const enc = new TextEncoder();
+  const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plainText));
+  return { v: 1, enc: true, salt: buf2b64(salt), iv: buf2b64(iv), data: buf2b64(cipherBuf) };
+}
+
+async function decryptData(payload, password) {
+  const salt = b642buf(payload.salt);
+  const iv = new Uint8Array(b642buf(payload.iv));
+  const key = await deriveKey(password, salt);
+  const cipherBuf = b642buf(payload.data);
+  const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBuf);
+  return new TextDecoder().decode(plainBuf);
+}
+
+async function exportToFileEncrypted() {
+  const pw = await customPasswordPrompt('🔒 Chiffrer la sauvegarde', 'Choisis un mot de passe (à retenir — il sera nécessaire pour ré-importer ce fichier).');
+  if (!pw) return;
+  const data = getShareData();
+  const payload = await encryptData(JSON.stringify(data), pw);
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = 'simulation-immo-chiffree_' + stamp + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  closeShareModal();
+  showSaveStatus('🔒 Sauvegarde chiffrée téléchargée — dépose-la dans ton Drive', true);
+}
+
+// ── Modale mot de passe (Promise-based, façon customConfirm) ──
+let _pwResolve = null;
+function customPasswordPrompt(title, message) {
+  return new Promise(resolve => {
+    _pwResolve = resolve;
+    document.getElementById('password-modal-title').textContent = title || '🔒 Mot de passe';
+    document.getElementById('password-modal-msg').textContent = message || '';
+    const input = document.getElementById('password-modal-input');
+    input.value = '';
+    input.onkeydown = (e) => { if (e.key === 'Enter') confirmPasswordPrompt(); };
+    document.getElementById('password-modal').classList.add('show');
+    setTimeout(() => input.focus(), 50);
+  });
+}
+function confirmPasswordPrompt() {
+  const val = document.getElementById('password-modal-input').value;
+  document.getElementById('password-modal').classList.remove('show');
+  if (_pwResolve) { _pwResolve(val || null); _pwResolve = null; }
+}
+function cancelPasswordPrompt() {
+  document.getElementById('password-modal').classList.remove('show');
+  if (_pwResolve) { _pwResolve(null); _pwResolve = null; }
 }
 
 function refreshAfterImport() {
@@ -1564,6 +1688,71 @@ async function exportToGoogleSheet() {
     setGsheetStatus('📤 Envoyé (réponse non vérifiable à cause des CORS) — va vérifier ton Sheet.', 'pending');
   } catch (e) {
     setGsheetStatus('❌ Échec de l\'envoi : ' + e.message + ' (vérifie l\'URL, et que le déploiement est bien accessible à "Tout le monde")', 'err');
+  }
+}
+
+// ══════════════════════════════════════════
+// SAUVEGARDE CHIFFRÉE SUR DRIVE (même fichier, toujours écrasé)
+// Réutilise l'URL + clé déjà configurées pour l'export Échéancier.
+// ══════════════════════════════════════════
+async function pushBackupToDrive() {
+  const url = document.getElementById('gsheet-url')?.value.trim() || localStorage.getItem('simu_gsheet_url') || '';
+  const key = document.getElementById('gsheet-key')?.value.trim() || localStorage.getItem('simu_gsheet_key') || '';
+  if (!url) { alert('Configure d\'abord l\'URL de ton Web App Apps Script (onglet Échéancier).'); return; }
+  const pw = await customPasswordPrompt('🔒 Envoyer vers Drive', 'Mot de passe pour chiffrer avant l\'envoi (ta compagne devra le connaître pour récupérer).');
+  if (!pw) return;
+  const data = getShareData();
+  const payload = await encryptData(JSON.stringify(data), pw);
+  const fetchOpts = {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // évite le préflight CORS
+    body: JSON.stringify({ secret: key, type: 'backup', payload })
+  };
+  try {
+    const res = await fetch(url, fetchOpts);
+    try {
+      const json = await res.json();
+      if (json.ok === false) { alert('Erreur côté script : ' + (json.error || 'inconnue')); return; }
+      closeShareModal();
+      showSaveStatus('🔒📤 Sauvegarde envoyée vers Drive', false);
+      return;
+    } catch (e) {
+      if (res.ok) { closeShareModal(); showSaveStatus('🔒📤 Sauvegarde envoyée vers Drive', false); return; }
+    }
+  } catch (e) { /* on retente en no-cors ci-dessous */ }
+  try {
+    await fetch(url, { ...fetchOpts, mode: 'no-cors' });
+    closeShareModal();
+    showSaveStatus('📤 Envoyé (réponse non vérifiable à cause des CORS) — va vérifier depuis l\'autre appareil', false);
+  } catch (e) {
+    alert('Échec de l\'envoi : ' + e.message);
+  }
+}
+
+async function pullBackupFromDrive() {
+  const url = document.getElementById('gsheet-url')?.value.trim() || localStorage.getItem('simu_gsheet_url') || '';
+  const key = document.getElementById('gsheet-key')?.value.trim() || localStorage.getItem('simu_gsheet_key') || '';
+  if (!url) { alert('Configure d\'abord l\'URL de ton Web App Apps Script (onglet Échéancier).'); return; }
+  try {
+    const res = await fetch(url + '?action=backup&secret=' + encodeURIComponent(key));
+    const json = await res.json();
+    if (!json.ok) { alert(json.error || 'Aucune sauvegarde trouvée sur le Drive.'); return; }
+    const pw = await customPasswordPrompt('🔒 Récupérer depuis Drive', 'Mot de passe utilisé pour chiffrer cette sauvegarde.');
+    if (!pw) return;
+    let plain;
+    try {
+      plain = await decryptData(json.payload, pw);
+    } catch (err) {
+      alert('Mot de passe incorrect.');
+      return;
+    }
+    const data = JSON.parse(plain);
+    applyImportedData(data);
+    refreshAfterImport();
+    closeShareModal();
+    showSaveStatus('🔒📥 Sauvegarde récupérée depuis Drive (' + new Date(json.savedAt).toLocaleString('fr-FR') + ')', true);
+  } catch (err) {
+    alert('Échec de la récupération : ' + err.message + ' (vérifie l\'URL et que le déploiement Apps Script est à jour)');
   }
 }
 
