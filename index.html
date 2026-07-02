@@ -1734,7 +1734,11 @@ async function pullBackupFromDrive() {
   const key = document.getElementById('gsheet-key')?.value.trim() || localStorage.getItem('simu_gsheet_key') || '';
   if (!url) { alert('Configure d\'abord l\'URL de ton Web App Apps Script (onglet Échéancier).'); return; }
   try {
-    const res = await fetch(url + '?action=backup&secret=' + encodeURIComponent(key));
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // évite le préflight CORS
+      body: JSON.stringify({ secret: key, type: 'pull' })
+    });
     const json = await res.json();
     if (!json.ok) { alert(json.error || 'Aucune sauvegarde trouvée sur le Drive.'); return; }
     const pw = await customPasswordPrompt('🔒 Récupérer depuis Drive', 'Mot de passe utilisé pour chiffrer cette sauvegarde.');
