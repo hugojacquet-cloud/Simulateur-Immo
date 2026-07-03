@@ -291,6 +291,21 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 .amort-cell.skip::after{content:"❌";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:7px;line-height:1}
 .amort-cell.empty-slot{background:transparent;border:none;cursor:default}
 
+/* ── AVENANTS (renégociation taux / remboursement anticipé) ── */
+.avenant-actions{display:flex;gap:8px;margin-top:10px}
+.btn-avenant{flex:1;background:#1a1030;border:1px solid #a04ff744;border-radius:8px;color:#a04ff7;padding:9px;font-size:.72rem;font-weight:700;letter-spacing:.3px;cursor:pointer;font-family:inherit}
+.btn-avenant:active{transform:scale(.98)}
+.avenant-toggle{flex:1.3;background:transparent;border:1px solid #30363d;border-radius:8px;color:#8b949e;padding:9px;font-size:.68rem;cursor:pointer;font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.avenant-history{max-height:0;overflow:hidden;transition:max-height .25s ease}
+.avenant-history.open{max-height:400px;overflow-y:auto}
+.avenant-item{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.68rem;color:#c9d1d9;padding:8px 4px;border-bottom:1px solid #ffffff0f}
+.avenant-item:last-child{border-bottom:none}
+.avenant-del{background:none;border:none;color:#f77a6a;font-size:1rem;cursor:pointer;line-height:1;padding:2px 6px;flex-shrink:0}
+.avenant-empty{font-size:.68rem;color:#556;padding:8px 4px;font-style:italic}
+.avenant-form-row{display:flex;gap:8px}
+.avenant-form-row .input-wrap{flex:1}
+#avenant-modal select{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:8px;padding:10px 12px;font-size:.85rem;font-family:inherit;width:100%;box-sizing:border-box}
+
 /* ── MODALE DE PARTAGE ── */
 .share-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;padding:20px}
 .share-modal-overlay.show{display:flex}
@@ -365,6 +380,44 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
       style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:8px;padding:10px 12px;font-size:.9rem">
     <button class="share-modal-btn" onclick="confirmPasswordPrompt()">✅ Valider</button>
     <button class="share-modal-btn secondary" onclick="cancelPasswordPrompt()">Annuler</button>
+  </div>
+</div>
+
+<!-- MODALE AVENANT (renégociation taux / remboursement anticipé) -->
+<div id="avenant-modal" class="share-modal-overlay" onclick="if(event.target===this) closeAvenantModal()">
+  <div class="share-modal">
+    <h3>📝 Nouvel avenant</h3>
+    <p class="share-modal-desc" style="margin-bottom:-2px">À partir de quand le changement s'applique-t-il ?</p>
+    <div class="avenant-form-row">
+      <div class="input-wrap taux">
+        <input type="text" inputmode="numeric" id="avenant-annee" placeholder="Année" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        <span class="input-unit">année</span>
+      </div>
+      <div class="input-wrap taux">
+        <input type="text" inputmode="numeric" id="avenant-mois" placeholder="Mois (1-12)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        <span class="input-unit">mois</span>
+      </div>
+    </div>
+    <p class="share-modal-desc" style="margin-bottom:-2px">Type d'avenant :</p>
+    <select id="avenant-type" onchange="toggleAvenantTypeFields()">
+      <option value="remb_anticipe">💰 Remboursement anticipé</option>
+      <option value="taux">📉 Changement de taux</option>
+    </select>
+    <div id="avenant-field-montant" class="input-wrap montant">
+      <input type="text" inputmode="numeric" id="avenant-montant" placeholder="Montant remboursé" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
+      <span class="input-unit">€</span>
+    </div>
+    <div id="avenant-field-taux" class="input-wrap taux" style="display:none">
+      <input type="text" inputmode="decimal" id="avenant-taux" placeholder="Nouveau taux" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
+      <span class="input-unit">%</span>
+    </div>
+    <p class="share-modal-desc" style="margin-bottom:-2px">Effet souhaité :</p>
+    <select id="avenant-mode">
+      <option value="duree">⏱️ Calcul auto du nombre de mois gagnés (mensualité ~stable)</option>
+      <option value="mensualite">💶 Calcul auto de la nouvelle mensualité (durée inchangée)</option>
+    </select>
+    <button class="share-modal-btn" onclick="submitAvenant()">✅ Ajouter l'avenant</button>
+    <button class="share-modal-btn secondary" onclick="closeAvenantModal()">Annuler</button>
   </div>
 </div>
 
@@ -1023,9 +1076,9 @@ async function exportPDF(tabId, btn) {
 // (indépendant de l'onglet 1 "Taux & Prêts")
 // ══════════════════════════════════════════
 let remb = [
-  {id:1, label:"Prêt bancaire", montant:230000, duree:20, taux:3.5, checked:[]},
-  {id:2, label:"Prêt familial", montant:60000, duree:15, taux:0, checked:[]},
-  {id:3, label:"PTZ", montant:90000, duree:20, taux:0, checked:[]}
+  {id:1, label:"Prêt bancaire", montant:230000, duree:20, taux:3.5, checked:[], avenants:[]},
+  {id:2, label:"Prêt familial", montant:60000, duree:15, taux:0, checked:[], avenants:[]},
+  {id:3, label:"PTZ", montant:90000, duree:20, taux:0, checked:[], avenants:[]}
 ];
 let nextRembId = 4;
 
@@ -1038,6 +1091,12 @@ function ensureCheckedLength(loan) {
   } else if (loan.checked.length > n) {
     loan.checked.length = n;
   }
+  ensureAvenants(loan);
+}
+
+// Compatibilité ascendante : les prêts sauvegardés avant l'ajout des avenants n'ont pas ce champ
+function ensureAvenants(loan) {
+  if (!Array.isArray(loan.avenants)) loan.avenants = [];
 }
 
 // Migration : d'anciennes sauvegardes stockaient true/false au lieu de 0/1/2
@@ -1049,7 +1108,7 @@ function normalizeRembStates() {
 }
 
 function addRemb() {
-  remb.push({id: nextRembId++, label: "", montant: "", duree: 20, taux: "", checked: []});
+  remb.push({id: nextRembId++, label: "", montant: "", duree: 20, taux: "", checked: [], avenants: []});
   renderRemb();
 }
 
@@ -1106,25 +1165,59 @@ async function validateRembFields(id) {
   showSaveStatus('✓ Prêt mis à jour (pense à sauvegarder 💾)', false);
 }
 
-// Calcule l'échéancier mois par mois d'un prêt en tenant compte des mensualités sautées :
-// une case "sautée" ne réduit pas le capital, mais le nombre de mensualités restantes diminue,
-// donc les mensualités futures sont recalculées à la hausse (redistribution du capital restant).
+// Calcule l'échéancier mois par mois d'un prêt en tenant compte :
+//  - des mensualités sautées (une case "sautée" ne réduit pas le capital, mais le
+//    nombre de mensualités restantes diminue, donc les mensualités futures sont
+//    recalculées à la hausse — redistribution du capital restant) ;
+//  - des avenants (baisse de taux / remboursement anticipé) : au mois où l'avenant
+//    prend effet, le taux et/ou le capital sont ajustés, puis soit la durée
+//    restante est recalculée pour retomber sur ~la même mensualité qu'avant
+//    (mode "duree"), soit elle reste inchangée et c'est la mensualité qui baisse
+//    (mode "mensualite").
 function computeAmortSchedule(loan) {
   ensureCheckedLength(loan);
-  const n = loan.checked.length;
-  const montant = parseFloat(loan.montant) || 0;
-  const t = (parseFloat(loan.taux) || 0) / 100 / 12;
-  let capital = montant;
+  let n = loan.checked.length; // nombre total de mensualités prévues (peut être réduit par un avenant en mode "durée")
+  const avenants = (loan.avenants || []).slice().sort((a, b) => a.atMonth - b.atMonth);
+  let capital = parseFloat(loan.montant) || 0;
+  let t = (parseFloat(loan.taux) || 0) / 100 / 12;
+  let avenantIdx = 0;
+  let lastMens = 0;
   const rows = [];
-  for (let i = 0; i < n; i++) {
+
+  for (let i = 0; i < n && capital > 0.005; i++) {
+    // Applique tous les avenants qui prennent effet à ce mois précis
+    while (avenantIdx < avenants.length && avenants[avenantIdx].atMonth === i) {
+      const av = avenants[avenantIdx];
+      if (av.type === 'taux') {
+        t = (parseFloat(av.nouveauTaux) || 0) / 100 / 12;
+      } else if (av.type === 'remb_anticipe') {
+        capital = Math.max(0, capital - (parseFloat(av.montant) || 0));
+      }
+      if (av.mode === 'duree' && lastMens > 0.005 && capital > 0.005) {
+        // Recalcule le nombre de mensualités restantes pour retomber sur
+        // ~la même mensualité qu'avant l'avenant (durée raccourcie ou allongée).
+        let remaining;
+        if (t) {
+          const ratio = 1 - (t * capital) / lastMens;
+          remaining = ratio > 0 ? Math.ceil(-Math.log(ratio) / Math.log(1 + t)) : null;
+        } else {
+          remaining = Math.ceil(capital / lastMens);
+        }
+        if (remaining && isFinite(remaining) && remaining > 0) n = i + remaining;
+      }
+      avenantIdx++;
+    }
+    if (capital <= 0.005) break;
+
     const slots = n - i;
     const mens = t
-      ? (slots ? capital * t / (1 - Math.pow(1 + t, -slots)) : 0)
-      : (slots ? capital / slots : 0);
+      ? (slots ? capital * t / (1 - Math.pow(1 + t, -slots)) : capital)
+      : (slots ? capital / slots : capital);
     const interet = capital * t;
     const principal = mens - interet;
     const state = loan.checked[i] || 0;
     rows.push({ i, state, mens, interet, principal, capitalAvant: capital });
+    lastMens = mens;
     if (state === 2) {
       // Mensualité sautée : le capital n'est pas remboursé CE mois-ci, mais les
       // intérêts de la période continuent de courir et sont reportés (capitalisés)
@@ -1138,6 +1231,90 @@ function computeAmortSchedule(loan) {
     }
   }
   return rows;
+}
+
+// ══════════════════════════════════════════
+// AVENANTS (renégociation de taux / remboursement anticipé)
+// ══════════════════════════════════════════
+function avenantAbsMonth(annee, moisDansAnnee) {
+  return Math.max(0, (parseInt(annee) || 1) - 1) * 12 + Math.max(0, (parseInt(moisDansAnnee) || 1) - 1);
+}
+
+function describeAvenant(av) {
+  const when = 'Année ' + av.annee + ', mois ' + av.moisDansAnnee;
+  const modeLabel = av.mode === 'duree' ? 'mensualité ~stable, durée ajustée' : 'durée identique, mensualité ajustée';
+  if (av.type === 'remb_anticipe') {
+    return when + ' — 💰 Remb. anticipé de ' + eurP(av.montant) + ' (' + modeLabel + ')';
+  }
+  return when + ' — 📉 Nouveau taux : ' + av.nouveauTaux + '% (' + modeLabel + ')';
+}
+
+let avenantModalLoanId = null;
+function openAvenantModal(loanId) {
+  avenantModalLoanId = loanId;
+  document.getElementById('avenant-annee').value = '';
+  document.getElementById('avenant-mois').value = '';
+  document.getElementById('avenant-type').value = 'remb_anticipe';
+  document.getElementById('avenant-montant').value = '';
+  document.getElementById('avenant-taux').value = '';
+  document.getElementById('avenant-mode').value = 'duree';
+  toggleAvenantTypeFields();
+  document.getElementById('avenant-modal').classList.add('show');
+}
+function closeAvenantModal() {
+  document.getElementById('avenant-modal').classList.remove('show');
+  avenantModalLoanId = null;
+}
+function toggleAvenantTypeFields() {
+  const type = document.getElementById('avenant-type').value;
+  document.getElementById('avenant-field-montant').style.display = type === 'remb_anticipe' ? '' : 'none';
+  document.getElementById('avenant-field-taux').style.display = type === 'taux' ? '' : 'none';
+}
+function submitAvenant() {
+  const loan = remb.find(l => l.id === avenantModalLoanId);
+  if (!loan) return;
+  ensureAvenants(loan);
+
+  const annee = parseInt(document.getElementById('avenant-annee').value) || 0;
+  const moisDansAnnee = parseInt(document.getElementById('avenant-mois').value) || 0;
+  if (annee < 1) { alert('Indique une année valide (à partir de 1).'); return; }
+  if (moisDansAnnee < 1 || moisDansAnnee > 12) { alert('Le mois doit être entre 1 et 12.'); return; }
+
+  const type = document.getElementById('avenant-type').value;
+  const mode = document.getElementById('avenant-mode').value;
+  const atMonth = avenantAbsMonth(annee, moisDansAnnee);
+
+  const avenant = { id: Date.now(), atMonth, annee, moisDansAnnee, type, mode };
+  if (type === 'remb_anticipe') {
+    const montant = parseFloat(document.getElementById('avenant-montant').value.replace(',', '.'));
+    if (!montant || montant <= 0) { alert('Indique un montant de remboursement anticipé valide.'); return; }
+    avenant.montant = montant;
+  } else {
+    const nouveauTaux = parseFloat(document.getElementById('avenant-taux').value.replace(',', '.'));
+    if (isNaN(nouveauTaux) || nouveauTaux < 0) { alert('Indique un nouveau taux valide.'); return; }
+    avenant.nouveauTaux = nouveauTaux;
+  }
+
+  loan.avenants.push(avenant);
+  closeAvenantModal();
+  renderRemb();
+  showSaveStatus('✓ Avenant ajouté (pense à sauvegarder 💾)', false);
+}
+async function deleteAvenant(loanId, avenantId) {
+  const loan = remb.find(l => l.id === loanId);
+  if (!loan) return;
+  const ok = await customConfirm('Supprimer cet avenant ? Les mensualités déjà cochées ne sont pas affectées.', '🗑️ Suppression');
+  if (!ok) return;
+  loan.avenants = (loan.avenants || []).filter(a => a.id !== avenantId);
+  renderRemb();
+  showSaveStatus('✓ Avenant supprimé (pense à sauvegarder 💾)', false);
+}
+function toggleAvenantHistory(loanId) {
+  const el = document.getElementById('avenant-history-' + loanId);
+  const btn = document.getElementById('avenant-toggle-' + loanId);
+  if (!el) return;
+  const isOpen = el.classList.toggle('open');
+  if (btn) btn.textContent = (isOpen ? '▾' : '▸') + ' Historique des avenants (' + (el.dataset.count || '0') + ')';
 }
 
 function cycleMonth(id, idx) {
@@ -1163,14 +1340,25 @@ function getLoanStats(loan) {
   const rows = computeAmortSchedule(loan);
   const mensInitiale = rows.length ? rows[0].mens : 0;
   let paye = 0, interetPaye = 0, capitalPaye = 0, restant = 0, interetRestant = 0, sautees = 0, traitees = 0;
-  let mensMajoree = 0;
+  let mensMajoree = null;
   rows.forEach(r => {
     if (r.state === 1) { paye += r.mens; interetPaye += r.interet; capitalPaye += Math.max(0, r.principal); traitees++; }
     else if (r.state === 2) { sautees++; traitees++; interetRestant += r.interet; /* intérêt reporté : reste dû, capitalisé sur le capital, mais toujours du crédit */ }
-    else { restant += r.mens; interetRestant += r.interet; mensMajoree = r.mens; }
+    else {
+      restant += r.mens; interetRestant += r.interet;
+      // Mensualité de la PROCHAINE échéance non traitée (pas la dernière) : ainsi
+      // l'affichage se met à jour au fil des cases cochées, en particulier après
+      // un avenant (baisse de taux / remboursement anticipé) qui change le montant
+      // à partir d'un certain mois.
+      if (mensMajoree === null) mensMajoree = r.mens;
+    }
   });
-  const showMajoree = sautees > 0 && mensMajoree > mensInitiale + 0.005;
-  const mensActuelle = showMajoree ? mensMajoree : mensInitiale; // mensualité en cours (majorée si des mensualités ont été sautées)
+  if (mensMajoree === null) mensMajoree = mensInitiale;
+  // "Majorée" au sens large : différente de la mensualité initiale, que ce soit à
+  // la hausse (mensualité sautée, hausse de taux) ou à la baisse (remb. anticipé,
+  // baisse de taux) — le signe est géré à l'affichage.
+  const showMajoree = Math.abs(mensMajoree - mensInitiale) > 0.005;
+  const mensActuelle = showMajoree ? mensMajoree : mensInitiale; // mensualité de la prochaine échéance à venir
   const isOngoing = rows.length > 0 && traitees < rows.length; // encore des mensualités à venir = crédit pas fini de rembourser
   return { rows, mensInitiale, mensMajoree, showMajoree, mensActuelle, isOngoing, paye, interetPaye, capitalPaye, restant, interetRestant, sautees, traitees };
 }
@@ -1180,11 +1368,16 @@ function refreshRembSummary(loan) {
   const { rows, mensInitiale, mensMajoree, showMajoree, paye, restant, interetRestant, sautees, traitees } = st;
   const s = document.getElementById('remb-summary-' + loan.id);
   if (s) {
-    const showMajoree = sautees > 0 && mensMajoree > mensInitiale + 0.005;
     const pctTraitees = rows.length ? Math.round(traitees / rows.length * 100) : 0;
+    const hausse = mensMajoree > mensInitiale;
+    const majoreeNote = showMajoree
+      ? '<span class="mini-note" style="color:' + (hausse ? '#ff9f43' : '#3fb950') + '">' +
+          (hausse ? '↑ Majorée : ' : '↓ Réduite : ') + eurP(mensMajoree) +
+        '</span>'
+      : '';
     s.innerHTML =
       '<div>Mensualité initiale<br><b>' + eurP(mensInitiale) + '</b>' +
-        (showMajoree ? '<span class="mini-note" style="color:#ff9f43">↑ Majorée : ' + eurP(mensMajoree) + '</span>' : '') +
+        majoreeNote +
       '</div>' +
       '<div>Payé<br><b>' + eurP(paye) + '</b></div>' +
       '<div>Restant estimé<br><b>' + eurP(restant) + '</b>' +
@@ -1234,9 +1427,13 @@ function renderAmortTable() {
   const container = document.getElementById('amort-years');
   if (!container) return;
   container.innerHTML = '';
-  const maxYears = Math.max(0, ...remb.map(l => Math.ceil((parseFloat(l.duree) || 0))));
+  // Longueur EFFECTIVE de chaque prêt (peut être plus courte — ou plus longue —
+  // que la durée nominale si un avenant a modifié le remboursement)
+  const effectiveLengths = new Map();
+  remb.forEach(l => effectiveLengths.set(l.id, computeAmortSchedule(l).length));
+  const maxYears = Math.max(0, ...remb.map(l => Math.ceil((effectiveLengths.get(l.id) || 0) / 12)));
   for (let y = 0; y < maxYears; y++) {
-    const loansThisYear = remb.filter(l => y * 12 < Math.round((parseFloat(l.duree) || 0) * 12));
+    const loansThisYear = remb.filter(l => y * 12 < (effectiveLengths.get(l.id) || 0));
     if (!loansThisYear.length) continue;
     const yearBlock = document.createElement('div');
     yearBlock.className = 'amort-year-block';
@@ -1244,7 +1441,7 @@ function renderAmortTable() {
     loansThisYear.forEach(loan => {
       const colorIdx = remb.indexOf(loan);
       const color = COLORS[colorIdx % COLORS.length];
-      const n = loan.checked.length;
+      const n = effectiveLengths.get(loan.id) || 0;
       let cells = '';
       for (let m = 0; m < 12; m++) {
         const idx = y * 12 + m;
@@ -1271,6 +1468,15 @@ function renderRemb() {
   remb.forEach((loan, i) => {
     ensureCheckedLength(loan);
     const color = COLORS[i % COLORS.length];
+    const avenantsSorted = (loan.avenants || []).slice().sort((a, b) => a.atMonth - b.atMonth);
+    const avenantsHtml = avenantsSorted.length
+      ? avenantsSorted.map(av =>
+          '<div class="avenant-item">' +
+            '<span>' + esc(describeAvenant(av)) + '</span>' +
+            '<button class="avenant-del" onclick="deleteAvenant(' + loan.id + ',' + av.id + ')">×</button>' +
+          '</div>'
+        ).join('')
+      : '<div class="avenant-empty">Aucun avenant pour ce prêt</div>';
     const d = document.createElement('div');
     d.className = 'loan-card';
     d.style.setProperty('--accent', color);
@@ -1295,7 +1501,12 @@ function renderRemb() {
           '<span class="input-unit">%</span></div>' +
       '</div>' +
       '<button class="btn-validate-remb" onclick="validateRembFields(' + loan.id + ')">✓ Valider les modifications</button>' +
-      '<div class="remb-summary-grid" id="remb-summary-' + loan.id + '"></div>';
+      '<div class="remb-summary-grid" id="remb-summary-' + loan.id + '"></div>' +
+      '<div class="avenant-actions">' +
+        '<button class="btn-avenant" onclick="openAvenantModal(' + loan.id + ')">➕ Avenant</button>' +
+        '<button class="avenant-toggle" id="avenant-toggle-' + loan.id + '" onclick="toggleAvenantHistory(' + loan.id + ')">▸ Historique des avenants (' + avenantsSorted.length + ')</button>' +
+      '</div>' +
+      '<div class="avenant-history" id="avenant-history-' + loan.id + '" data-count="' + avenantsSorted.length + '">' + avenantsHtml + '</div>';
     c.appendChild(d);
     refreshRembSummary(loan);
   });
