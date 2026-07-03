@@ -1176,15 +1176,26 @@ async function validateRembFields(id) {
 //    (mode "mensualite").
 function computeAmortSchedule(loan) {
   ensureCheckedLength(loan);
-  let n = loan.checked.length; // nombre total de mensualités prévues (peut être réduit par un avenant en mode "durée")
+  const SAFETY_MAX = 1200; // 100 ans — garde-fou anti-boucle infinie, jamais atteint en usage normal
+  let n = loan.checked.length; // nombre de mensualités visé, utilisé seulement en mode "annuité"
   const avenants = (loan.avenants || []).slice().sort((a, b) => a.atMonth - b.atMonth);
   let capital = parseFloat(loan.montant) || 0;
   let t = (parseFloat(loan.taux) || 0) / 100 / 12;
   let avenantIdx = 0;
   let lastMens = 0;
+  // mode 'annuite' (par défaut) : la mensualité est recalculée chaque mois pour
+  // amortir le capital sur les "slots" restants (n - i) — comportement standard.
+  // mode 'fixe' (déclenché par un avenant "durée réduite") : la mensualité reste
+  // STRICTEMENT identique à ce qu'elle était juste avant l'avenant, mois après
+  // mois, jusqu'à ce que le capital soit soldé — exactement comme le ferait une
+  // banque. Seule la toute dernière mensualité de ce segment est ajustée (à la
+  // baisse) pour clôturer pile sur le capital restant, sans jamais toucher aux
+  // mensualités précédentes.
+  let mode = 'annuite';
+  let fixedPayment = 0;
   const rows = [];
 
-  for (let i = 0; i < n && capital > 0.005; i++) {
+  for (let i = 0; i < SAFETY_MAX && capital > 0.005; i++) {
     // Applique tous les avenants qui prennent effet à ce mois précis
     while (avenantIdx < avenants.length && avenants[avenantIdx].atMonth === i) {
       const av = avenants[avenantIdx];
@@ -1193,27 +1204,46 @@ function computeAmortSchedule(loan) {
       } else if (av.type === 'remb_anticipe') {
         capital = Math.max(0, capital - (parseFloat(av.montant) || 0));
       }
-      if (av.mode === 'duree' && lastMens > 0.005 && capital > 0.005) {
-        // Recalcule le nombre de mensualités restantes pour retomber sur
-        // ~la même mensualité qu'avant l'avenant (durée raccourcie ou allongée).
-        let remaining;
-        if (t) {
-          const ratio = 1 - (t * capital) / lastMens;
-          remaining = ratio > 0 ? Math.ceil(-Math.log(ratio) / Math.log(1 + t)) : null;
-        } else {
-          remaining = Math.ceil(capital / lastMens);
+      if (av.mode === 'duree' && lastMens > 0.005) {
+        // Verrouille la mensualité à sa valeur actuelle : la durée s'ajustera
+        // toute seule (le prêt se termine dès que le capital est soldé).
+        mode = 'fixe';
+        fixedPayment = lastMens;
+      } else if (av.mode === 'mensualite' && capital > 0.005) {
+        // Retour en mode "annuité" : on ré-étale le capital restant sur un
+        // nombre de mensualités équivalent à ce qu'il restait avant l'avenant,
+        // pour que ce soit bien la mensualité (et non la durée) qui absorbe le
+        // changement.
+        const target = mode === 'fixe' ? fixedPayment : lastMens;
+        if (target > 0.005) {
+          let remaining;
+          if (t) {
+            const ratio = 1 - (t * capital) / target;
+            remaining = ratio > 0 ? Math.ceil(-Math.log(ratio) / Math.log(1 + t)) : null;
+          } else {
+            remaining = Math.ceil(capital / target);
+          }
+          if (remaining && isFinite(remaining) && remaining > 0) n = i + remaining;
         }
-        if (remaining && isFinite(remaining) && remaining > 0) n = i + remaining;
+        mode = 'annuite';
       }
       avenantIdx++;
     }
     if (capital <= 0.005) break;
 
-    const slots = n - i;
-    const mens = t
-      ? (slots ? capital * t / (1 - Math.pow(1 + t, -slots)) : capital)
-      : (slots ? capital / slots : capital);
-    const interet = capital * t;
+    let mens, interet;
+    if (mode === 'fixe') {
+      interet = capital * t;
+      // Plafonne à ce qu'il faut pour clôturer pile : seule la dernière
+      // mensualité du segment peut différer (toujours à la baisse).
+      mens = Math.min(fixedPayment, capital + interet);
+    } else {
+      const slots = Math.max(0, n - i);
+      interet = capital * t;
+      mens = t
+        ? (slots ? capital * t / (1 - Math.pow(1 + t, -slots)) : capital + interet)
+        : (slots ? capital / slots : capital);
+    }
     const principal = mens - interet;
     const state = loan.checked[i] || 0;
     rows.push({ i, state, mens, interet, principal, capitalAvant: capital });
