@@ -1641,14 +1641,43 @@ function setGsheetStatus(msg, cls) {
 // Construit le payload d'export : un instantané daté par prêt
 function buildGsheetPayload() {
   const key = document.getElementById('gsheet-key')?.value.trim() || '';
+  let totalPaye = 0, totalRestant = 0, totalInteretRestant = 0, totalInteret = 0, totalCapital = 0, totalMens = 0, doneCount = 0, mensualiteTotale = 0;
   const loansData = remb.map(loan => {
-    const rows = computeAmortSchedule(loan);
+    const st = getLoanStats(loan);
     // valeur par mois : montant remboursé si payé, sinon vide (null)
-    const values = rows.map(r => r.state === 1 ? Math.round(r.mens * 100) / 100 : null);
-    return { label: loan.label || 'Prêt', values };
+    const values = st.rows.map(r => r.state === 1 ? Math.round(r.mens * 100) / 100 : null);
+    totalPaye += st.paye;
+    totalInteret += st.interetPaye;
+    totalCapital += st.capitalPaye;
+    totalRestant += st.restant;
+    totalInteretRestant += st.interetRestant;
+    doneCount += st.traitees;
+    totalMens += st.rows.length;
+    if (st.isOngoing) mensualiteTotale += st.mensActuelle;
+    return {
+      label: loan.label || 'Prêt',
+      values,
+      montant: Math.round((parseFloat(loan.montant) || 0) * 100) / 100,
+      mensInitiale: Math.round(st.mensInitiale * 100) / 100,
+      mensMajoree: st.showMajoree ? Math.round(st.mensMajoree * 100) / 100 : null,
+      paye: Math.round(st.paye * 100) / 100,
+      restant: Math.round(st.restant * 100) / 100,
+      traitees: st.traitees,
+      totalMensualites: st.rows.length
+    };
   });
   const maxMonths = loansData.reduce((m, l) => Math.max(m, l.values.length), 0);
-  return { secret: key, maxMonths, loans: loansData };
+  const bilanGlobal = {
+    traitees: doneCount,
+    totalMensualites: totalMens,
+    totalPaye: Math.round(totalPaye * 100) / 100,
+    totalRestant: Math.round(totalRestant * 100) / 100,
+    totalInteretRestant: Math.round(totalInteretRestant * 100) / 100,
+    totalInteret: Math.round(totalInteret * 100) / 100,
+    totalCapital: Math.round(totalCapital * 100) / 100,
+    mensualiteTotale: Math.round(mensualiteTotale * 100) / 100
+  };
+  return { secret: key, maxMonths, loans: loansData, bilanGlobal };
 }
 
 async function exportToGoogleSheet() {
