@@ -2095,6 +2095,8 @@ function buildGsheetPayload() {
     const st = getLoanStats(loan);
     // valeur par mois : montant remboursé si payé, sinon vide (null)
     const values = st.rows.map(r => r.state === 1 ? Math.round(r.mens * 100) / 100 : null);
+    // phase par mois : 'interet_seul' (construction) vs 'annuite'/'fixe' (remboursement du capital)
+    const phases = st.rows.map(r => r.phase);
     totalPaye += st.paye + st.assurancePayee;
     totalInteret += st.interetPaye;
     totalCapital += st.capitalPaye;
@@ -2104,10 +2106,17 @@ function buildGsheetPayload() {
     doneCount += st.traitees;
     totalCredit += st.totalCredit;
     if (st.isOngoing) mensualiteTotale += st.mensActuelleTotale;
+    // Capital réellement débloqué à ce jour : pour un prêt classique (pas de
+    // différé), c'est le montant total dès le départ. Pour un prêt à différé,
+    // c'est la somme des avenants "déblocage" déjà ajoutés (peut être < montant).
+    const montantDebloque = loan.differe
+      ? Math.round(st.dejaDebloque * 100) / 100
+      : Math.round((parseFloat(loan.montant) || 0) * 100) / 100;
     return {
       label: loan.label || 'Prêt',
       values,
-      montant: Math.round((parseFloat(loan.montant) || 0) * 100) / 100,
+      phases,
+      montantDebloque,
       mensInitiale: Math.round(st.mensInitiale * 100) / 100,
       mensMajoree: st.showMajoree ? Math.round(st.mensMajoree * 100) / 100 : null,
       paye: Math.round((st.paye + st.assurancePayee) * 100) / 100,
