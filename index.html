@@ -44,7 +44,8 @@ body{min-height:100vh;background:#0d1117;font-family:-apple-system,BlinkMacSyste
 .loan-label{background:transparent;border:none;outline:none;font-weight:700;font-size:.9rem;letter-spacing:.5px;color:var(--accent);width:70%;font-family:inherit}
 .btn-remove{background:#ffffff10;border:none;color:#888;cursor:pointer;border-radius:6px;padding:4px 10px;font-size:1.1rem;line-height:1}
 .loan-inputs{display:flex;gap:8px}
-.loan-inputs2{display:flex;gap:8px;margin-top:8px;align-items:center}
+.loan-inputs2{display:flex;gap:8px;margin-top:8px;align-items:flex-end}
+.loan-input-label{font-size:.62rem;color:#8b949e;margin-bottom:2px;padding-left:2px}
 .loan-differe-toggle{display:flex;align-items:center;gap:6px;flex:2;font-size:.7rem;color:#8b949e;cursor:pointer;user-select:none}
 .loan-differe-toggle input{width:16px;height:16px;flex-shrink:0;accent-color:#a04ff7}
 .loan-inputs2 .input-wrap{flex:1}
@@ -413,11 +414,11 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
     </div>
     <p class="share-modal-desc" style="margin-bottom:-2px">Type d'avenant :</p>
     <select id="avenant-type" onchange="toggleAvenantTypeFields()">
-      <option value="remb_anticipe">💰 Remboursement anticipé</option>
       <option value="deblocage">🏗️ Déblocage de fonds (capital augmente)</option>
       <option value="taux">📉 Changement de taux</option>
       <option value="debut_capital">🔑 Fin de différé — début remboursement du capital</option>
       <option value="assurance">🛡️ Changement d'assurance</option>
+      <option value="remb_anticipe">💰 Remboursement anticipé</option>
     </select>
     <div id="avenant-field-montant" class="input-wrap montant">
       <input type="text" inputmode="numeric" id="avenant-montant" placeholder="Montant" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
@@ -427,9 +428,9 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
       <input type="text" inputmode="decimal" id="avenant-taux" placeholder="Nouveau taux" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
       <span class="input-unit">%</span>
     </div>
-    <div id="avenant-field-assurance" class="input-wrap montant" style="display:none">
-      <input type="text" inputmode="numeric" id="avenant-assurance" placeholder="Nouvelle assurance mensuelle" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
-      <span class="input-unit">€/mois</span>
+    <div id="avenant-field-assurance" class="input-wrap taux" style="display:none">
+      <input type="text" inputmode="decimal" id="avenant-assurance" placeholder="Nouveau taux d'assurance" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
+      <span class="input-unit">%/an</span>
     </div>
     <div id="avenant-field-mode">
       <p class="share-modal-desc" style="margin-bottom:-2px">Effet souhaité :</p>
@@ -1113,9 +1114,9 @@ async function exportPDF(tabId, btn) {
 // (indépendant de l'onglet 1 "Taux & Prêts")
 // ══════════════════════════════════════════
 let remb = [
-  {id:1, label:"Prêt bancaire", montant:230000, duree:20, taux:3.5, checked:[], avenants:[], differe:false, assuranceMensuelle:0},
-  {id:2, label:"Prêt familial", montant:60000, duree:15, taux:0, checked:[], avenants:[], differe:false, assuranceMensuelle:0},
-  {id:3, label:"PTZ", montant:90000, duree:20, taux:0, checked:[], avenants:[], differe:false, assuranceMensuelle:0}
+  {id:1, label:"Prêt bancaire", montant:230000, duree:20, taux:3.5, checked:[], avenants:[], differe:false, assuranceTaux:0},
+  {id:2, label:"Prêt familial", montant:60000, duree:15, taux:0, checked:[], avenants:[], differe:false, assuranceTaux:0},
+  {id:3, label:"PTZ", montant:90000, duree:20, taux:0, checked:[], avenants:[], differe:false, assuranceTaux:0}
 ];
 let nextRembId = 4;
 let dureeConstructionAns = 0; // repère visuel global (années) pour teinter la phase différé dans le tableau d'amortissement
@@ -1150,7 +1151,7 @@ function ensureCheckedLength(loan) {
 function ensureAvenants(loan) {
   if (!Array.isArray(loan.avenants)) loan.avenants = [];
   if (typeof loan.differe !== 'boolean') loan.differe = false;
-  if (loan.assuranceMensuelle === undefined || loan.assuranceMensuelle === null) loan.assuranceMensuelle = 0;
+  if (loan.assuranceTaux === undefined || loan.assuranceTaux === null) loan.assuranceTaux = 0;
 }
 
 // Migration : d'anciennes sauvegardes stockaient true/false au lieu de 0/1/2
@@ -1162,7 +1163,7 @@ function normalizeRembStates() {
 }
 
 function addRemb() {
-  remb.push({id: nextRembId++, label: "", montant: "", duree: 20, taux: "", checked: [], avenants: [], differe: false, assuranceMensuelle: ''});
+  remb.push({id: nextRembId++, label: "", montant: "", duree: 20, taux: "", checked: [], avenants: [], differe: false, assuranceTaux: ''});
   renderRemb();
 }
 
@@ -1197,7 +1198,7 @@ async function validateRembFields(id) {
   const newMontant = montantEl.value.replace(',', '.');
   const newDuree   = parseInt(dureeEl.value) || 0;
   const newTaux    = tauxEl.value.replace(',', '.');
-  const newAssurance = assuranceEl ? assuranceEl.value.replace(',', '.') : loan.assuranceMensuelle;
+  const newAssurance = assuranceEl ? assuranceEl.value.replace(',', '.') : loan.assuranceTaux;
   const newN       = newDuree * 12;
   const oldN       = loan.checked.length;
 
@@ -1216,7 +1217,7 @@ async function validateRembFields(id) {
   loan.montant = newMontant;
   loan.duree   = newDuree;
   loan.taux    = newTaux;
-  loan.assuranceMensuelle = newAssurance;
+  loan.assuranceTaux = newAssurance;
   loan.checked.length = newN; // troncature volontaire, confirmée ci-dessus si besoin
   ensureCheckedLength(loan); // ré-agrandit si newN > longueur actuelle
   renderRemb();
@@ -1242,7 +1243,7 @@ function computeAmortSchedule(loan) {
   // alors l'enveloppe totale prévue, pas le capital immédiatement dû.
   let capital = loan.differe ? 0 : (parseFloat(loan.montant) || 0);
   let t = (parseFloat(loan.taux) || 0) / 100 / 12;
-  let currentAssurance = parseFloat(loan.assuranceMensuelle) || 0;
+  let ta = (parseFloat(loan.assuranceTaux) || 0) / 100 / 12; // taux d'assurance mensuel, même calcul que le taux d'intérêt
   let avenantIdx = 0;
   let lastMens = 0;
   // mode 'interet_seul' : phase différé — on ne paie que les intérêts sur le
@@ -1273,7 +1274,7 @@ function computeAmortSchedule(loan) {
         mode = 'annuite';
         n = i + Math.max(1, Math.round((parseFloat(loan.duree) || 0) * 12));
       } else if (av.type === 'assurance') {
-        currentAssurance = parseFloat(av.nouvelleAssurance) || 0;
+        ta = (parseFloat(av.nouvelleAssuranceTaux) || 0) / 100 / 12;
       }
 
       // Le choix "durée / mensualité" ne concerne que le remb. anticipé et le
@@ -1325,7 +1326,8 @@ function computeAmortSchedule(loan) {
       principal = mens - interet;
     }
     const state = loan.checked[i] || 0;
-    rows.push({ i, state, mens, interet, principal, capitalAvant: capital, assurance: currentAssurance, phase: mode });
+    const assurance = capital * ta; // même calcul que l'intérêt : capital dû × taux — nul si aucun capital débloqué
+    rows.push({ i, state, mens, interet, principal, capitalAvant: capital, assurance, phase: mode });
     lastMens = mens;
     if (state === 2) {
       // Mensualité sautée : le capital n'est pas remboursé CE mois-ci, mais les
@@ -1364,7 +1366,7 @@ function describeAvenant(av) {
     return when + ' — 🔑 Fin de différé : début du remboursement du capital';
   }
   if (av.type === 'assurance') {
-    return when + ' — 🛡️ Nouvelle assurance : ' + eurP(av.nouvelleAssurance) + ' / mois';
+    return when + ' — 🛡️ Nouveau taux d\'assurance : ' + av.nouvelleAssuranceTaux + '%/an';
   }
   return when + ' — 📉 Nouveau taux : ' + av.nouveauTaux + '% (' + modeLabel + ')';
 }
@@ -1440,9 +1442,9 @@ function submitAvenant() {
     avenant.nouveauTaux = nouveauTaux;
     avenant.mode = mode;
   } else if (type === 'assurance') {
-    const nouvelleAssurance = parseFloat(document.getElementById('avenant-assurance').value.replace(',', '.'));
-    if (isNaN(nouvelleAssurance) || nouvelleAssurance < 0) { alert('Indique un montant d\'assurance valide.'); return; }
-    avenant.nouvelleAssurance = nouvelleAssurance;
+    const nouvelleAssuranceTaux = parseFloat(document.getElementById('avenant-assurance').value.replace(',', '.'));
+    if (isNaN(nouvelleAssuranceTaux) || nouvelleAssuranceTaux < 0) { alert('Indique un taux d\'assurance valide.'); return; }
+    avenant.nouvelleAssuranceTaux = nouvelleAssuranceTaux;
   }
   // type === 'debut_capital' : rien d'autre à saisir, juste la date de bascule
 
@@ -1508,7 +1510,7 @@ function getLoanStats(loan) {
       paye += r.mens;
       assurancePayee += r.assurance || 0;
       if (isConstruction) {
-        fraisIntercalairesPayes += r.mens; // pur intérêt intercalaire, aucun capital remboursé
+        fraisIntercalairesPayes += r.mens + (r.assurance || 0); // intérêts + assurance pendant le différé = frais intercalaires
       } else {
         interetPaye += r.interet;
         capitalPaye += Math.max(0, r.principal);
@@ -1527,7 +1529,7 @@ function getLoanStats(loan) {
     }
   });
   if (mensMajoree === null) mensMajoree = mensInitiale;
-  if (assuranceActuelle === null) assuranceActuelle = parseFloat(loan.assuranceMensuelle) || 0;
+  if (assuranceActuelle === null) assuranceActuelle = 0; // aucune échéance à venir : capital nul ou prêt soldé, donc assurance nulle aussi
   if (phaseActuelle === null) phaseActuelle = rows.length ? rows[rows.length - 1].phase : (loan.differe ? 'interet_seul' : 'annuite');
   // Capital réellement dû : le capital ne se réduit QUE quand du principal est
   // effectivement remboursé (jamais en payant des intérêts seuls / frais
@@ -1726,10 +1728,11 @@ function renderRemb() {
             'onchange="updateRemb(' + loan.id + ',\'differe\',this.checked); renderRemb();" />' +
           '<span>🏗️ Prêt avec différé (construction)</span>' +
         '</label>' +
-        '<div class="input-wrap montant">' +
-          '<input type="text" inputmode="numeric" id="remb-assurance-' + loan.id + '" placeholder="Assurance" value="' + loan.assuranceMensuelle + '" ' +
+        '<div class="input-wrap taux">' +
+          '<div class="loan-input-label">Assurance</div>' +
+          '<input type="text" inputmode="decimal" id="remb-assurance-' + loan.id + '" placeholder="Taux" value="' + loan.assuranceTaux + '" ' +
             'oninput="this.value=this.value.replace(/[^0-9.,]/g,\'\')" />' +
-          '<span class="input-unit">€/mois</span></div>' +
+          '<span class="input-unit">%/an</span></div>' +
       '</div>' +
       '<button class="btn-validate-remb" onclick="validateRembFields(' + loan.id + ')">✓ Valider les modifications</button>' +
       '<div class="remb-summary-grid" id="remb-summary-' + loan.id + '"></div>' +
@@ -2109,6 +2112,8 @@ function buildGsheetPayload() {
       mensMajoree: st.showMajoree ? Math.round(st.mensMajoree * 100) / 100 : null,
       paye: Math.round((st.paye + st.assurancePayee) * 100) / 100,
       restant: Math.round(st.capitalRestantDu * 100) / 100,
+      interetRestant: Math.round(st.interetRestant * 100) / 100,
+      fraisIntercalaires: Math.round(st.fraisIntercalairesPayes * 100) / 100,
       traitees: st.traitees,
       totalMensualites: st.totalCredit
     };
