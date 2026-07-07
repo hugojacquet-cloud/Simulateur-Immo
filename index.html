@@ -424,6 +424,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
       <input type="text" inputmode="numeric" id="avenant-montant" placeholder="Montant" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
       <span class="input-unit">€</span>
     </div>
+    <p class="share-modal-desc" id="avenant-deblocage-hint" style="display:none;margin-top:-6px;color:#8b949e"></p>
     <div id="avenant-field-taux" class="input-wrap taux" style="display:none">
       <input type="text" inputmode="decimal" id="avenant-taux" placeholder="Nouveau taux" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
       <span class="input-unit">%</span>
@@ -622,6 +623,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
       </div>
       <div class="gsheet-row"><input type="text" id="gsheet-url" placeholder="URL du Web App (https://script.google.com/macros/s/.../exec)" oninput="saveGsheetConfig()"></div>
       <div class="gsheet-row"><input type="text" id="gsheet-key" placeholder="Clé secrète (optionnelle, doit correspondre au script)" oninput="saveGsheetConfig()"></div>
+      <div class="gsheet-row"><input type="text" id="gsheet-folder-id" placeholder="ID du dossier Drive pour la sauvegarde (optionnel, sinon racine)" oninput="saveGsheetConfig()"></div>
     </div>
     <button class="btn-validate-remb" onclick="exportToGoogleSheet()">📤 Exporter mon historique vers le Sheet</button>
     <div class="gsheet-status" id="gsheet-status"></div>
@@ -1398,6 +1400,21 @@ function toggleAvenantTypeFields() {
   // déblocage (toujours intérêts seuls tant que le différé n'est pas terminé)
   // ni pour la fin de différé / le changement d'assurance.
   document.getElementById('avenant-field-mode').style.display = (type === 'remb_anticipe' || type === 'taux') ? '' : 'none';
+
+  const hint = document.getElementById('avenant-deblocage-hint');
+  if (type === 'deblocage' && avenantModalLoanId != null) {
+    const loan = remb.find(l => l.id === avenantModalLoanId);
+    if (loan) {
+      const dejaDebloque = (loan.avenants || [])
+        .filter(a => a.type === 'deblocage')
+        .reduce((s, a) => s + (parseFloat(a.montant) || 0), 0);
+      const enveloppe = parseFloat(loan.montant) || 0;
+      hint.textContent = 'Déjà débloqué : ' + eurP(dejaDebloque) + ' / ' + eurP(enveloppe);
+      hint.style.display = '';
+    }
+  } else if (hint) {
+    hint.style.display = 'none';
+  }
 }
 function submitAvenant() {
   const loan = remb.find(l => l.id === avenantModalLoanId);
@@ -1491,24 +1508,16 @@ function eurP(n) { return new Intl.NumberFormat('fr-FR',{style:'currency',curren
 // Source unique de vérité pour les stats d'un prêt : réutilisée par la carte du prêt ET le résumé global
 function getLoanStats(loan) {
   const rows = computeAmortSchedule(loan);
-  // Pour un prêt à différé, la "mensualité initiale" pertinente est celle du
-  // premier mois d'amortissement réel (après la fin du différé) — pas le
-  // premier mois du prêt, qui est en intérêts seuls (souvent proche de 0€ et
-  // sans rapport avec ce que sera la vraie mensualité).
-  let mensInitiale = rows.length ? rows[0].mens : 0;
-  if (loan.differe) {
-    const firstAmortRow = rows.find(r => r.phase !== 'interet_seul');
-    mensInitiale = firstAmortRow ? firstAmortRow.mens : 0;
-  }
   let paye = 0, interetPaye = 0, capitalPaye = 0, restant = 0, interetRestant = 0, sautees = 0, traitees = 0;
-  let assurancePayee = 0, assuranceRestante = 0, fraisIntercalairesPayes = 0, totalCredit = 0;
-  let mensMajoree = null, assuranceActuelle = null, phaseActuelle = null, capitalRestantDu = null;
+  let assurancePayee = 0, assuranceRestante = 0, fraisIntercalairesPayes = 0, totalCredit = 0, traiteesGlobal = 0;
+  let mensActuelle = null, assuranceActuelle = null, phaseActuelle = null, capitalRestantDu = null;
   rows.forEach(r => {
     const isConstruction = r.phase === 'interet_seul'; // frais intercalaires : ne compte pas dans le suivi du crédit
     if (!isConstruction) totalCredit++; // dénominateur "mensualités traitées" : uniquement le vrai remboursement du crédit
     if (r.state === 1) {
       paye += r.mens;
       assurancePayee += r.assurance || 0;
+      traiteesGlobal++;
       if (isConstruction) {
         fraisIntercalairesPayes += r.mens + (r.assurance || 0); // intérêts + assurance pendant le différé = frais intercalaires
       } else {
@@ -1518,17 +1527,19 @@ function getLoanStats(loan) {
       }
     } else if (r.state === 2) {
       sautees++;
+      traiteesGlobal++;
       if (!isConstruction) { traitees++; interetRestant += r.interet; /* intérêt reporté : reste dû, capitalisé sur le capital, mais toujours du crédit */ }
     } else {
       assuranceRestante += r.assurance || 0;
       if (!isConstruction) { restant += r.mens; interetRestant += r.interet; }
       // Mensualité (et assurance, et phase, et capital dû) de la PROCHAINE
-      // échéance non traitée (pas la dernière) : ainsi l'affichage se met à
-      // jour au fil des cases cochées, en particulier après un avenant.
-      if (mensMajoree === null) { mensMajoree = r.mens; assuranceActuelle = r.assurance || 0; phaseActuelle = r.phase; capitalRestantDu = r.capitalAvant; }
+      // échéance non traitée (pas la dernière) : une seule notion de "mensualité
+      // actuelle" qui évolue au fil des avenants et des cases cochées — plus de
+      // distinction "initiale / majorée / réduite".
+      if (mensActuelle === null) { mensActuelle = r.mens; assuranceActuelle = r.assurance || 0; phaseActuelle = r.phase; capitalRestantDu = r.capitalAvant; }
     }
   });
-  if (mensMajoree === null) mensMajoree = mensInitiale;
+  if (mensActuelle === null) mensActuelle = rows.length ? rows[rows.length - 1].mens : 0; // tout est traité : garde la dernière valeur connue
   if (assuranceActuelle === null) assuranceActuelle = 0; // aucune échéance à venir : capital nul ou prêt soldé, donc assurance nulle aussi
   if (phaseActuelle === null) phaseActuelle = rows.length ? rows[rows.length - 1].phase : (loan.differe ? 'interet_seul' : 'annuite');
   // Capital réellement dû : le capital ne se réduit QUE quand du principal est
@@ -1537,20 +1548,15 @@ function getLoanStats(loan) {
   // capital final du tableau (0€ si le prêt est intégralement amorti, ou le
   // capital tel qu'il est resté si le prêt est toujours en différé).
   if (capitalRestantDu === null) capitalRestantDu = rows.capitalFinal != null ? rows.capitalFinal : 0;
-  // "Majorée" au sens large : différente de la mensualité initiale, que ce soit à
-  // la hausse (mensualité sautée, hausse de taux) ou à la baisse (remb. anticipé,
-  // baisse de taux) — le signe est géré à l'affichage.
-  const showMajoree = Math.abs(mensMajoree - mensInitiale) > 0.005;
-  const mensActuelle = showMajoree ? mensMajoree : mensInitiale; // mensualité banque de la prochaine échéance à venir
-  const mensActuelleTotale = mensActuelle + assuranceActuelle; // banque + assurance, ce que tu paies réellement
-  const isOngoing = totalCredit > 0 && traitees < totalCredit; // encore des mensualités de CRÉDIT à venir
+  const mensActuelleTotale = mensActuelle + assuranceActuelle; // banque + assurance, utilisé uniquement pour le total global
+  const isOngoing = rows.length > 0 && traiteesGlobal < rows.length; // encore des mensualités à venir, TOUTES phases confondues (différé inclus)
   const enDiffere = phaseActuelle === 'interet_seul'; // actuellement en phase "intérêts seuls" (construction)
   // Montant déjà débloqué sur l'enveloppe totale (prêts à différé uniquement)
   const dejaDebloque = (loan.avenants || [])
     .filter(a => a.type === 'deblocage')
     .reduce((s, a) => s + (parseFloat(a.montant) || 0), 0);
   return {
-    rows, mensInitiale, mensMajoree, showMajoree, mensActuelle, isOngoing, paye, interetPaye, capitalPaye,
+    rows, mensActuelle, isOngoing, paye, interetPaye, capitalPaye,
     restant, interetRestant, sautees, traitees, assurancePayee, assuranceRestante, assuranceActuelle,
     mensActuelleTotale, enDiffere, capitalRestantDu, dejaDebloque, fraisIntercalairesPayes, totalCredit
   };
@@ -1558,35 +1564,24 @@ function getLoanStats(loan) {
 
 function refreshRembSummary(loan) {
   const st = getLoanStats(loan);
-  const { mensInitiale, mensMajoree, showMajoree, paye, capitalRestantDu, interetRestant, sautees, traitees, totalCredit, assuranceActuelle, assurancePayee, fraisIntercalairesPayes, enDiffere, dejaDebloque } = st;
+  const { mensActuelle, paye, capitalRestantDu, interetRestant, sautees, traitees, totalCredit, fraisIntercalairesPayes, enDiffere, dejaDebloque } = st;
   const s = document.getElementById('remb-summary-' + loan.id);
   if (s) {
     const pctTraitees = totalCredit ? Math.round(traitees / totalCredit * 100) : 0;
-    const hausse = mensMajoree > mensInitiale;
-    const majoreeNote = showMajoree
-      ? '<span class="mini-note" style="color:' + (hausse ? '#ff9f43' : '#3fb950') + '">' +
-          (hausse ? '↑ Majorée : ' : '↓ Réduite : ') + eurP(mensMajoree) +
-        '</span>'
-      : '';
     const phaseNote = enDiffere
       ? '<span class="mini-note" style="color:#4f8ef7">🏗️ Phase différé (intérêts seuls)</span>'
       : '';
     const fraisNote = fraisIntercalairesPayes > 0.005
       ? '<span class="mini-note" style="color:#ff6b6b">dont frais intercalaires : ' + eurP(fraisIntercalairesPayes) + '</span>'
       : '';
-    const assuranceBlock = assuranceActuelle > 0.005
-      ? '<div>Assurance<br><b>' + eurP(assuranceActuelle) + '</b>' +
-          '<span class="mini-note">total banque+assur. : ' + eurP(st.mensActuelleTotale) + '</span>' +
-        '</div>'
-      : '';
     const deblocageBlock = loan.differe
       ? '<div>Débloqué<br><b>' + eurP(dejaDebloque) + ' / ' + eurP(parseFloat(loan.montant) || 0) + '</b></div>'
       : '';
     s.innerHTML =
-      '<div>Mensualité initiale<br><b>' + eurP(mensInitiale) + '</b>' +
-        majoreeNote + phaseNote +
+      '<div>Mensualité actuelle<br><b>' + eurP(mensActuelle) + '</b>' +
+        phaseNote +
       '</div>' +
-      '<div>Payé<br><b>' + eurP(paye + assurancePayee) + '</b>' +
+      '<div>Payé<br><b>' + eurP(paye + st.assurancePayee) + '</b>' +
         fraisNote +
       '</div>' +
       '<div>Capital restant dû<br><b>' + eurP(capitalRestantDu) + '</b>' +
@@ -1596,7 +1591,6 @@ function refreshRembSummary(loan) {
         '<span class="mini-note">' + pctTraitees + '% du crédit</span>' +
       '</div>' +
       deblocageBlock +
-      assuranceBlock +
       (sautees ? '<div>Sautées<br><b style="color:#ff9f43">' + sautees + '</b></div>' : '');
   }
 }
@@ -2063,9 +2057,11 @@ function showSaveStatus(msg, isRestored) {
 function saveGsheetConfig() {
   const url = document.getElementById('gsheet-url')?.value.trim() || '';
   const key = document.getElementById('gsheet-key')?.value.trim() || '';
+  const folderId = document.getElementById('gsheet-folder-id')?.value.trim() || '';
   try {
     localStorage.setItem('simu_gsheet_url', url);
     localStorage.setItem('simu_gsheet_key', key);
+    localStorage.setItem('simu_gsheet_folder_id', folderId);
   } catch (e) { /* stockage indisponible, tant pis */ }
 }
 
@@ -2073,10 +2069,13 @@ function loadGsheetConfig() {
   try {
     const url = localStorage.getItem('simu_gsheet_url') || '';
     const key = localStorage.getItem('simu_gsheet_key') || '';
+    const folderId = localStorage.getItem('simu_gsheet_folder_id') || '';
     const urlEl = document.getElementById('gsheet-url');
     const keyEl = document.getElementById('gsheet-key');
+    const folderEl = document.getElementById('gsheet-folder-id');
     if (urlEl) urlEl.value = url;
     if (keyEl) keyEl.value = key;
+    if (folderEl) folderEl.value = folderId;
   } catch (e) { /* rien à charger */ }
 }
 
@@ -2090,6 +2089,7 @@ function setGsheetStatus(msg, cls) {
 // Construit le payload d'export : un instantané daté par prêt
 function buildGsheetPayload() {
   const key = document.getElementById('gsheet-key')?.value.trim() || '';
+  const folderId = document.getElementById('gsheet-folder-id')?.value.trim() || '';
   let totalPaye = 0, totalRestant = 0, totalInteretRestant = 0, totalInteret = 0, totalCapital = 0, totalCredit = 0, doneCount = 0, mensualiteTotale = 0, totalFrais = 0;
   const loansData = remb.map(loan => {
     const st = getLoanStats(loan);
@@ -2109,17 +2109,18 @@ function buildGsheetPayload() {
     // Capital réellement débloqué à ce jour : pour un prêt classique (pas de
     // différé), c'est le montant total dès le départ. Pour un prêt à différé,
     // c'est la somme des avenants "déblocage" déjà ajoutés (peut être < montant).
-    const montantDebloque = loan.differe
-      ? Math.round(st.dejaDebloque * 100) / 100
-      : Math.round((parseFloat(loan.montant) || 0) * 100) / 100;
+    const montantTotal = Math.round((parseFloat(loan.montant) || 0) * 100) / 100;
+    const montantDebloque = loan.differe ? Math.round(st.dejaDebloque * 100) / 100 : montantTotal;
     return {
       label: loan.label || 'Prêt',
       values,
       phases,
       montantDebloque,
-      mensInitiale: Math.round(st.mensInitiale * 100) / 100,
-      mensMajoree: st.showMajoree ? Math.round(st.mensMajoree * 100) / 100 : null,
+      montantTotal,
+      mensActuelle: Math.round(st.mensActuelle * 100) / 100,
       paye: Math.round((st.paye + st.assurancePayee) * 100) / 100,
+      capitalPaye: Math.round(st.capitalPaye * 100) / 100,
+      interetPaye: Math.round(st.interetPaye * 100) / 100,
       restant: Math.round(st.capitalRestantDu * 100) / 100,
       interetRestant: Math.round(st.interetRestant * 100) / 100,
       fraisIntercalaires: Math.round(st.fraisIntercalairesPayes * 100) / 100,
@@ -2139,7 +2140,7 @@ function buildGsheetPayload() {
     totalCapital: Math.round(totalCapital * 100) / 100,
     mensualiteTotale: Math.round(mensualiteTotale * 100) / 100
   };
-  return { secret: key, maxMonths, loans: loansData, bilanGlobal };
+  return { secret: key, folderId, maxMonths, loans: loansData, bilanGlobal };
 }
 
 async function exportToGoogleSheet() {
@@ -2189,6 +2190,7 @@ async function exportToGoogleSheet() {
 async function pushBackupToDrive() {
   const url = document.getElementById('gsheet-url')?.value.trim() || localStorage.getItem('simu_gsheet_url') || '';
   const key = document.getElementById('gsheet-key')?.value.trim() || localStorage.getItem('simu_gsheet_key') || '';
+  const folderId = document.getElementById('gsheet-folder-id')?.value.trim() || localStorage.getItem('simu_gsheet_folder_id') || '';
   if (!url) { alert('Configure d\'abord l\'URL de ton Web App Apps Script (onglet Échéancier).'); return; }
   const pw = await customPasswordPrompt('🔒 Envoyer vers Drive', 'Mot de passe pour chiffrer avant l\'envoi (ta compagne devra le connaître pour récupérer).');
   if (!pw) return;
@@ -2197,7 +2199,7 @@ async function pushBackupToDrive() {
   const fetchOpts = {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // évite le préflight CORS
-    body: JSON.stringify({ secret: key, type: 'backup', payload })
+    body: JSON.stringify({ secret: key, type: 'backup', payload, folderId })
   };
   try {
     const res = await fetch(url, fetchOpts);
@@ -2223,12 +2225,13 @@ async function pushBackupToDrive() {
 async function pullBackupFromDrive() {
   const url = document.getElementById('gsheet-url')?.value.trim() || localStorage.getItem('simu_gsheet_url') || '';
   const key = document.getElementById('gsheet-key')?.value.trim() || localStorage.getItem('simu_gsheet_key') || '';
+  const folderId = document.getElementById('gsheet-folder-id')?.value.trim() || localStorage.getItem('simu_gsheet_folder_id') || '';
   if (!url) { alert('Configure d\'abord l\'URL de ton Web App Apps Script (onglet Échéancier).'); return; }
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // évite le préflight CORS
-      body: JSON.stringify({ secret: key, type: 'pull' })
+      body: JSON.stringify({ secret: key, type: 'pull', folderId })
     });
     const json = await res.json();
     if (!json.ok) { alert(json.error || 'Aucune sauvegarde trouvée sur le Drive.'); return; }
