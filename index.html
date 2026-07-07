@@ -2161,7 +2161,7 @@ async function exportToGoogleSheet() {
     const res = await fetch(url, fetchOpts);
     try {
       const json = await res.json();
-      if (json.ok === false) { setGsheetStatus('❌ Erreur côté script : ' + (json.error || 'inconnue'), 'err'); return; }
+      if (json.ok === false) { setGsheetStatus('❌ Erreur côté script : ' + (json.error || 'inconnue') + (json.step ? ' [étape: ' + json.step + ']' : ''), 'err'); return; }
       setGsheetStatus('✅ Échéancier mis à jour (' + payload.loans.length + ' prêt(s), ' + payload.maxMonths + ' mois)', 'ok');
       return;
     } catch (e) {
