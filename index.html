@@ -1578,7 +1578,7 @@ function refreshRembSummary(loan) {
       ? '<div>Débloqué<br><b>' + eurP(dejaDebloque) + ' / ' + eurP(parseFloat(loan.montant) || 0) + '</b></div>'
       : '';
     s.innerHTML =
-      '<div>Mensualité actuelle<br><b>' + eurP(mensActuelle) + '</b>' +
+      '<div>Mensualité actuelle<br><b>' + eurP(st.mensActuelleTotale) + '</b>' +
         phaseNote +
       '</div>' +
       '<div>Payé<br><b>' + eurP(paye + st.assurancePayee) + '</b>' +
@@ -2161,7 +2161,7 @@ async function exportToGoogleSheet() {
     const res = await fetch(url, fetchOpts);
     try {
       const json = await res.json();
-      if (json.ok === false) { setGsheetStatus('❌ Erreur côté script : ' + (json.error || 'inconnue') + (json.step ? ' [étape: ' + json.step + ']' : ''), 'err'); return; }
+      if (json.ok === false) { setGsheetStatus('❌ Erreur côté script : ' + (json.error || 'inconnue'), 'err'); return; }
       setGsheetStatus('✅ Échéancier mis à jour (' + payload.loans.length + ' prêt(s), ' + payload.maxMonths + ' mois)', 'ok');
       return;
     } catch (e) {
