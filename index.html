@@ -1244,8 +1244,15 @@ function computeAmortSchedule(loan) {
   // et n'augmente qu'au fil des avenants "déblocage" — le champ montant représente
   // alors l'enveloppe totale prévue, pas le capital immédiatement dû.
   let capital = loan.differe ? 0 : (parseFloat(loan.montant) || 0);
+  // Base fixe pour l'assurance : en pratique bancaire française, l'assurance
+  // emprunteur est très majoritairement calculée sur le "capital initial" (le
+  // montant total emprunté à la signature), avec une cotisation CONSTANTE tout
+  // au long du prêt — contrairement à l'assurance sur "capital restant dû"
+  // (dégressive), plus rare et surtout proposée par les assurances externes en
+  // délégation. On modélise donc ici le cas standard d'un prêt bancaire.
+  const montantInitialAssurance = parseFloat(loan.montant) || 0;
   let t = (parseFloat(loan.taux) || 0) / 100 / 12;
-  let ta = (parseFloat(loan.assuranceTaux) || 0) / 100 / 12; // taux d'assurance mensuel, même calcul que le taux d'intérêt
+  let ta = (parseFloat(loan.assuranceTaux) || 0) / 100 / 12; // taux d'assurance mensuel
   let avenantIdx = 0;
   let lastMens = 0;
   // mode 'interet_seul' : phase différé — on ne paie que les intérêts sur le
@@ -1328,7 +1335,11 @@ function computeAmortSchedule(loan) {
       principal = mens - interet;
     }
     const state = loan.checked[i] || 0;
-    const assurance = capital * ta; // même calcul que l'intérêt : capital dû × taux — nul si aucun capital débloqué
+    // Assurance sur capital initial : montant CONSTANT tout au long du prêt
+    // (pratique standard des banques françaises), qu'il reste beaucoup ou peu
+    // de capital à rembourser — contrairement à l'intérêt, qui lui suit bien
+    // le capital réellement dû à chaque mois.
+    const assurance = montantInitialAssurance * ta;
     rows.push({ i, state, mens, interet, principal, capitalAvant: capital, assurance, phase: mode });
     lastMens = mens;
     if (state === 2) {
