@@ -1575,7 +1575,7 @@ function getLoanStats(loan) {
 
 function refreshRembSummary(loan) {
   const st = getLoanStats(loan);
-  const { mensActuelle, paye, capitalRestantDu, interetRestant, sautees, traitees, totalCredit, fraisIntercalairesPayes, enDiffere, dejaDebloque } = st;
+  const { mensActuelle, paye, capitalRestantDu, interetRestant, sautees, traitees, totalCredit, fraisIntercalairesPayes, enDiffere, dejaDebloque, assuranceRestante } = st;
   const s = document.getElementById('remb-summary-' + loan.id);
   if (s) {
     const pctTraitees = totalCredit ? Math.round(traitees / totalCredit * 100) : 0;
@@ -1596,7 +1596,7 @@ function refreshRembSummary(loan) {
         fraisNote +
       '</div>' +
       '<div>Capital restant dû<br><b>' + eurP(capitalRestantDu) + '</b>' +
-        '<span class="mini-note" style="color:#ff6b6b">+ intérêts restants : ' + eurP(interetRestant) + '</span>' +
+        '<span class="mini-note" style="color:#ff6b6b">+ intérêts restants : ' + eurP(interetRestant + assuranceRestante) + '</span>' +
       '</div>' +
       '<div>Mensualités traitées<br><b>' + traitees + ' / ' + totalCredit + '</b>' +
         '<span class="mini-note">' + pctTraitees + '% du crédit</span>' +
@@ -1612,10 +1612,13 @@ function renderGlobalSummary() {
   remb.forEach(loan => {
     const st = getLoanStats(loan);
     totalPaye += st.paye + st.assurancePayee;
-    totalInteret += st.interetPaye;
+    // "Intérêts" = intérêts + assurance, partout dans l'app (choix assumé de
+    // l'utilisateur : l'assurance est traitée comme une composante du coût des
+    // intérêts, pas comme une catégorie à part).
+    totalInteret += st.interetPaye + st.assurancePayee;
     totalCapital += st.capitalPaye;
     totalCapitalRestantDu += st.capitalRestantDu;
-    totalInteretRestant += st.interetRestant;
+    totalInteretRestant += st.interetRestant + st.assuranceRestante;
     totalFraisIntercalaires += st.fraisIntercalairesPayes;
     doneCount += st.traitees;
     totalCredit += st.totalCredit;
@@ -2111,10 +2114,13 @@ function buildGsheetPayload() {
     // phase par mois : 'interet_seul' (construction) vs 'annuite'/'fixe' (remboursement du capital)
     const phases = st.rows.map(r => r.phase);
     totalPaye += st.paye + st.assurancePayee;
-    totalInteret += st.interetPaye;
+    // "Intérêts" = intérêts + assurance partout, y compris dans l'export Sheet
+    // (choix assumé : l'assurance est comptée comme faisant partie du coût des
+    // intérêts, pas affichée à part).
+    totalInteret += st.interetPaye + st.assurancePayee;
     totalCapital += st.capitalPaye;
     totalRestant += st.capitalRestantDu;
-    totalInteretRestant += st.interetRestant;
+    totalInteretRestant += st.interetRestant + st.assuranceRestante;
     totalFrais += st.fraisIntercalairesPayes;
     doneCount += st.traitees;
     totalCredit += st.totalCredit;
@@ -2134,9 +2140,9 @@ function buildGsheetPayload() {
       mensActuelleTotale: Math.round(st.mensActuelleTotale * 100) / 100,
       paye: Math.round((st.paye + st.assurancePayee) * 100) / 100,
       capitalPaye: Math.round(st.capitalPaye * 100) / 100,
-      interetPaye: Math.round(st.interetPaye * 100) / 100,
+      interetPaye: Math.round((st.interetPaye + st.assurancePayee) * 100) / 100,
       restant: Math.round(st.capitalRestantDu * 100) / 100,
-      interetRestant: Math.round(st.interetRestant * 100) / 100,
+      interetRestant: Math.round((st.interetRestant + st.assuranceRestante) * 100) / 100,
       fraisIntercalaires: Math.round(st.fraisIntercalairesPayes * 100) / 100,
       traitees: st.traitees,
       totalMensualites: st.totalCredit
