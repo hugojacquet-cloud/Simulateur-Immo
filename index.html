@@ -2104,8 +2104,10 @@ function buildGsheetPayload() {
   let totalPaye = 0, totalRestant = 0, totalInteretRestant = 0, totalInteret = 0, totalCapital = 0, totalCredit = 0, doneCount = 0, mensualiteTotale = 0, totalFrais = 0;
   const loansData = remb.map(loan => {
     const st = getLoanStats(loan);
-    // valeur par mois : montant remboursé si payé, sinon vide (null)
-    const values = st.rows.map(r => r.state === 1 ? Math.round(r.mens * 100) / 100 : null);
+    // valeur par mois : montant remboursé si payé (banque + assurance, pour
+    // que la somme de la colonne "Total mensuel" dans Historique corresponde
+    // exactement à "Déjà payé" dans le bilan — même base partout), sinon vide (null)
+    const values = st.rows.map(r => r.state === 1 ? Math.round((r.mens + (r.assurance || 0)) * 100) / 100 : null);
     // phase par mois : 'interet_seul' (construction) vs 'annuite'/'fixe' (remboursement du capital)
     const phases = st.rows.map(r => r.phase);
     totalPaye += st.paye + st.assurancePayee;
@@ -2129,6 +2131,7 @@ function buildGsheetPayload() {
       montantDebloque,
       montantTotal,
       mensActuelle: Math.round(st.mensActuelle * 100) / 100,
+      mensActuelleTotale: Math.round(st.mensActuelleTotale * 100) / 100,
       paye: Math.round((st.paye + st.assurancePayee) * 100) / 100,
       capitalPaye: Math.round(st.capitalPaye * 100) / 100,
       interetPaye: Math.round(st.interetPaye * 100) / 100,
