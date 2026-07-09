@@ -36,6 +36,8 @@ body{min-height:100vh;background:#0d1117;font-family:-apple-system,BlinkMacSyste
 .header-prets{text-align:center;margin-bottom:24px}
 .header-prets .subtitle{font-size:.65rem;letter-spacing:4px;color:#4f8ef7;text-transform:uppercase;margin-bottom:6px}
 .header-prets h1{font-size:1.8rem;font-weight:800;color:#f0f6ff;line-height:1.2}
+.btn-reset-echeancier{display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:#2a1010;border:1px solid #f7484844;border-radius:20px;color:#ff6b6b;padding:8px 16px;font-size:.72rem;font-weight:700;letter-spacing:.3px;cursor:pointer;font-family:inherit}
+.btn-reset-echeancier:active{transform:scale(.96)}
 .header-prets h1 span{color:#4f8ef7}
 
 .loans{display:flex;flex-direction:column;gap:10px}
@@ -358,7 +360,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
   <button class="tab-btn" onclick="switchTab('echeancier',this)">🗓️ Échéancier</button>
   <button class="tab-save" id="btn-save-local" onclick="saveLocal()" title="Sauvegarder dans le navigateur">💾</button>
   <button class="tab-save" id="btn-share" onclick="openShareModal()" title="Partager ma simulation">📤</button>
-  <button class="tab-save" id="btn-import" onclick="document.getElementById('import-file-input').click()" title="Importer une simulation reçue">📥</button>
+  <button class="tab-save" id="btn-import" onclick="openImportModal()" title="Importer une simulation">📥</button>
   <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="importFromFile(event)">
 </div>
 <div class="save-status" id="save-status"></div>
@@ -367,7 +369,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 <div id="share-modal" class="share-modal-overlay" onclick="if(event.target===this) closeShareModal()">
   <div class="share-modal">
     <h3>📤 Partager ma simulation</h3>
-    <p class="share-modal-desc">La personne récupère exactement tes chiffres actuels.</p>
+    <p class="share-modal-desc">La personne récupère exactement tes chiffres actuels — le fichier s'ouvre directement dans un navigateur, rien à installer. Ta config Google Sheet personnelle n'est pas incluse.</p>
     <button class="share-modal-btn" onclick="exportToFile()">📄 Envoyer un fichier (WhatsApp, mail…)</button>
     <button class="share-modal-btn" onclick="exportToLink()">🔗 Générer un lien à copier</button>
     <div id="share-link-box" style="display:none">
@@ -380,8 +382,21 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
     <hr style="border:none;border-top:1px solid #30363d;margin:4px 0">
     <p class="share-modal-desc" style="margin-bottom:-2px">Toujours le même fichier sur ton Drive (via ton Sheet) — pratique à deux :</p>
     <button class="share-modal-btn" onclick="pushBackupToDrive()">🔒📤 Envoyer vers Drive</button>
-    <button class="share-modal-btn" onclick="pullBackupFromDrive()">🔒📥 Récupérer depuis Drive</button>
     <button class="share-modal-btn secondary" onclick="closeShareModal()">Fermer</button>
+  </div>
+</div>
+
+<!-- MODALE D'IMPORT -->
+<div id="import-modal" class="share-modal-overlay" onclick="if(event.target===this) closeImportModal()">
+  <div class="share-modal">
+    <h3>📥 Importer ma simulation</h3>
+    <p class="share-modal-desc">Récupère une simulation depuis l'une de ces sources.</p>
+    <button class="share-modal-btn" onclick="closeImportModal(); document.getElementById('import-file-input').click()">📄 Importer un fichier reçu (.json)</button>
+    <button class="share-modal-btn" onclick="importFromLocalStorage()">💾 Récupérer la sauvegarde locale (cet appareil)</button>
+    <hr style="border:none;border-top:1px solid #30363d;margin:4px 0">
+    <p class="share-modal-desc" style="margin-bottom:-2px">Depuis ton Drive (via ton Sheet) :</p>
+    <button class="share-modal-btn" onclick="pullBackupFromDrive()">🔒📥 Récupérer depuis Drive</button>
+    <button class="share-modal-btn secondary" onclick="closeImportModal()">Fermer</button>
   </div>
 </div>
 
@@ -589,6 +604,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
   <div class="header-prets">
     <div class="subtitle">Suivi personnel</div>
     <h1>Mon <span>Échéancier</span></h1>
+    <button class="btn-reset-echeancier" onclick="resetEcheancier()" title="Effacer tous les avenants et toutes les mensualités cochées">🔁♻️ Réinitialiser</button>
   </div>
 
   <div class="loans" id="remb-list"></div>
@@ -867,14 +883,38 @@ function renderLoans() {
   refreshPrets();
 }
 
-function telechargerTout() {
+// Construit un instantané HTML complet et autonome de l'app avec les données
+// actuelles injectées (mêmes principe que "Télécharger tout", réutilisé aussi
+// pour le partage). stripGoogleSheet=true retire tout ce qui touche à TON
+// Google Sheet personnel (URL/clé/dossier stockés et boutons associés), pour
+// qu'un fichier partagé avec quelqu'un d'externe ne puisse jamais y toucher.
+function buildFullHtmlSnapshot(stripGoogleSheet) {
   let src = document.documentElement.outerHTML;
-  // Onglet 1 — prêts
-  src = src.replace(/let apport\s+=\s+[\d.]+;/, "let apport   = "+apport+";");
-  src = src.replace(/let loans = \[[\s\S]*?\];/, "let loans = "+JSON.stringify(loans)+";");
-  src = src.replace(/let nextId = \d+, duree = \d+,/, "let nextId = "+nextId+", duree = "+duree+",");
-  // Onglet 2 — budget
-  src = src.replace(/let SECTIONS = \[[\s\S]*?\];/, "let SECTIONS = "+JSON.stringify(SECTIONS)+";");
+  // \s* (plutôt que \s+ figé sur un seul espace) : robuste à l'espacement
+  // réel du fichier source, qui peut varier (ex: "let apport   = ...").
+  src = src.replace(/let\s+apport\s*=\s*[\d.]+;/, "let apport   = " + apport + ";");
+  src = src.replace(/let\s+loans\s*=\s*\[[\s\S]*?\];/, "let loans = " + JSON.stringify(loans) + ";");
+  src = src.replace(/let\s+nextId\s*=\s*\d+,\s*duree\s*=\s*\d+,\s*tauxMoyen\s*=\s*\d+,\s*capital\s*=\s*\d+;/,
+    "let nextId   = " + nextId + ", duree = " + duree + ", tauxMoyen = 0, capital = 0;");
+  src = src.replace(/let\s+SECTIONS\s*=\s*\[[\s\S]*?\];/, "let SECTIONS = " + JSON.stringify(SECTIONS) + ";");
+  src = src.replace(/let\s+remb\s*=\s*\[[\s\S]*?\];/, "let remb = " + JSON.stringify(remb) + ";");
+  src = src.replace(/let\s+nextRembId\s*=\s*\d+;/, "let nextRembId = " + nextRembId + ";");
+  src = src.replace(/let\s+dureeConstructionAns\s*=\s*\d+;[^\n]*/, "let dureeConstructionAns = " + dureeConstructionAns + ";");
+
+  if (!stripGoogleSheet) return src;
+
+  const doc = new DOMParser().parseFromString(src, 'text/html');
+  const gs = doc.querySelector('.gsheet-export');
+  if (gs) gs.remove();
+  doc.querySelectorAll('.share-modal-btn').forEach(function(btn) {
+    const oc = btn.getAttribute('onclick') || '';
+    if (oc.includes('pushBackupToDrive') || oc.includes('pullBackupFromDrive') || oc.includes('exportToGoogleSheet')) btn.remove();
+  });
+  return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+}
+
+function telechargerTout() {
+  const src = buildFullHtmlSnapshot(false);
   const blob = new Blob([src], {type:"text/html"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -1178,11 +1218,59 @@ async function removeRemb(id) {
   }
 }
 
+// Réinitialise le SUIVI (avenants + mensualités cochées) de TOUS les prêts,
+// sans toucher aux montants/taux/durées. Action destructive → confirmation.
+async function resetEcheancier() {
+  if (!remb.length) return;
+  const ok = await customConfirm(
+    'Cette action va supprimer TOUS les avenants et décocher TOUTES les mensualités (payées/sautées) de TOUS tes prêts dans cet onglet.\n\nLes montants, taux et durées des prêts ne sont PAS touchés.\n\nContinuer ?',
+    '♻️ Réinitialiser le suivi'
+  );
+  if (!ok) return;
+  remb.forEach(function(loan) {
+    loan.avenants = [];
+    if (Array.isArray(loan.checked)) loan.checked = loan.checked.map(function() { return 0; });
+  });
+  renderRemb();
+  showSaveStatus('♻️ Suivi réinitialisé (pense à sauvegarder 💾)', false);
+}
+
 function updateRemb(id, field, value) {
   // Utilisé uniquement pour le libellé (mise à jour en direct, sans impact sur le calcul)
   const loan = remb.find(l => l.id === id);
   if (!loan) return;
   loan[field] = value;
+}
+
+// Active/désactive le différé, en nettoyant les avenants devenus incompatibles.
+// Décocher "différé" fait repartir le capital à 100% dès le mois 1 — si des
+// avenants "déblocage" (ou "fin de différé") existent encore, ils s'ajouteraient
+// PAR-DESSUS ce capital déjà complet au lieu de le construire progressivement,
+// ce qui gonflerait artificiellement la dette. On les retire donc, avec
+// confirmation de l'utilisateur avant d'y toucher.
+async function toggleDiffere(id, checked) {
+  const loan = remb.find(l => l.id === id);
+  if (!loan) return;
+  ensureAvenants(loan);
+  if (!checked) {
+    const obsolete = (loan.avenants || []).filter(a => a.type === 'deblocage' || a.type === 'debut_capital');
+    if (obsolete.length > 0) {
+      const ok = await customConfirm(
+        'Décocher "Prêt avec différé" va supprimer ' + obsolete.length +
+        ' avenant(s) de déblocage / fin de différé sur ce prêt : ils n\'ont plus de sens sans différé et fausseraient les calculs (capital compté en double) s\'ils restaient.\n\nContinuer quand même ?',
+        '⚠️ Avenants incompatibles'
+      );
+      if (!ok) {
+        const cb = document.getElementById('remb-differe-' + id);
+        if (cb) cb.checked = true; // annule visuellement le décochage
+        return;
+      }
+      loan.avenants = loan.avenants.filter(a => a.type !== 'deblocage' && a.type !== 'debut_capital');
+    }
+  }
+  loan.differe = checked;
+  renderRemb();
+  showSaveStatus('✓ Prêt mis à jour (pense à sauvegarder 💾)', false);
 }
 
 // Valide les modifications de montant / durée / taux, avec protection anti-perte de données
@@ -1733,7 +1821,7 @@ function renderRemb() {
       '<div class="loan-inputs2">' +
         '<label class="loan-differe-toggle">' +
           '<input type="checkbox" id="remb-differe-' + loan.id + '" ' + (loan.differe ? 'checked' : '') + ' ' +
-            'onchange="updateRemb(' + loan.id + ',\'differe\',this.checked); renderRemb();" />' +
+            'onchange="toggleDiffere(' + loan.id + ', this.checked)" />' +
           '<span>🏗️ Prêt avec différé (construction)</span>' +
         '</label>' +
         '<div class="input-wrap taux">' +
@@ -1862,15 +1950,33 @@ function openShareModal() {
 function closeShareModal() {
   document.getElementById('share-modal').classList.remove('show');
 }
+function openImportModal() {
+  document.getElementById('import-modal').classList.add('show');
+}
+function closeImportModal() {
+  document.getElementById('import-modal').classList.remove('show');
+}
+function importFromLocalStorage() {
+  const ok = loadLocal(); // met déjà à jour les variables + affiche un statut si trouvée
+  if (!ok) {
+    alert('Aucune sauvegarde locale trouvée sur cet appareil.');
+    return;
+  }
+  refreshAfterImport();
+  closeImportModal();
+}
 
 function exportToFile() {
-  const data = getShareData();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  // Fichier .html autonome (plus simple à ouvrir pour quelqu'un d'externe
+  // qu'un .json — un double-clic suffit) et allégé de tout ce qui touche à
+  // TON Google Sheet, pour que le destinataire ne puisse jamais y toucher.
+  const src = buildFullHtmlSnapshot(true);
+  const blob = new Blob([src], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const stamp = new Date().toISOString().slice(0,10);
   a.href = url;
-  a.download = 'simulation-immo_' + stamp + '.json';
+  a.download = 'simulation-immo_' + stamp + '.html';
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -2267,7 +2373,7 @@ async function pullBackupFromDrive() {
     const data = JSON.parse(plain);
     applyImportedData(data);
     refreshAfterImport();
-    closeShareModal();
+    closeImportModal();
     showSaveStatus('🔒📥 Sauvegarde récupérée depuis Drive (' + new Date(json.savedAt).toLocaleString('fr-FR') + ')', true);
   } catch (err) {
     alert('Échec de la récupération : ' + err.message + ' (vérifie l\'URL et que le déploiement Apps Script est à jour)');
