@@ -705,28 +705,87 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let currentHouseholdId = null;
 
-// Affiche l'écran de connexion (lien magique)
+// Écoute les événements de récupération de mot de passe : quand quelqu'un
+// clique sur le lien reçu par email (première connexion ou mot de passe
+// oublié), Supabase crée une session spéciale et déclenche cet événement —
+// on bascule alors sur l'écran de définition du nouveau mot de passe.
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') showSetPasswordScreen();
+});
+
+// Affiche l'écran de connexion (email + mot de passe)
 function showLoginScreen() {
   document.body.innerHTML = `
     <div style="max-width:340px;margin:80px auto;padding:24px;background:#161b22;border-radius:14px;border:1px solid #30363d;font-family:-apple-system,sans-serif;color:#e6edf3">
       <h2 style="margin-bottom:14px">🔐 Connexion</h2>
-      <p style="font-size:.8rem;color:#8b949e;margin-bottom:14px">Entre ton email, tu recevras un lien de connexion (pas de mot de passe).</p>
-      <input id="login-email" type="email" placeholder="ton@email.com"
+      <input id="login-email" type="email" placeholder="ton@email.com" autocomplete="username"
         style="width:100%;padding:10px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;margin-bottom:10px;box-sizing:border-box">
-      <button onclick="sendMagicLink()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#4f8ef7;color:#fff;font-weight:700;cursor:pointer">Envoyer le lien</button>
-      <p id="login-status" style="font-size:.75rem;margin-top:10px;color:#3fb950"></p>
+      <input id="login-password" type="password" placeholder="Mot de passe" autocomplete="current-password"
+        style="width:100%;padding:10px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;margin-bottom:10px;box-sizing:border-box">
+      <input id="login-household-code" type="text" placeholder="Code foyer (optionnel — pour rejoindre un nouveau foyer)"
+        style="width:100%;padding:10px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#8b949e;font-size:.78rem;margin-bottom:10px;box-sizing:border-box">
+      <button onclick="loginWithPassword()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#4f8ef7;color:#fff;font-weight:700;cursor:pointer">Se connecter</button>
+      <p style="text-align:center;margin-top:12px">
+        <a href="#" onclick="requestPasswordReset();return false;" style="font-size:.72rem;color:#8b949e;text-decoration:underline">Première connexion, ou mot de passe oublié ?</a>
+      </p>
+      <p id="login-status" style="font-size:.75rem;margin-top:6px;color:#f77a6a;text-align:center"></p>
     </div>`;
 }
 
-async function sendMagicLink() {
+async function loginWithPassword() {
   const email = document.getElementById('login-email').value.trim();
-  if (!email) return;
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: location.origin + location.pathname }
-  });
+  const password = document.getElementById('login-password').value;
+  const code = document.getElementById('login-household-code').value.trim();
   const status = document.getElementById('login-status');
-  status.textContent = error ? '❌ ' + error.message : '✅ Vérifie ta boîte mail !';
+  if (!email || !password) { status.textContent = '❌ Renseigne ton email et ton mot de passe.'; return; }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { status.textContent = '❌ Email ou mot de passe incorrect.'; return; }
+
+  if (code) {
+    // Rejoint le foyer indiqué (best-effort : si déjà membre ou code invalide, on ignore silencieusement et on continue)
+    const { data: household } = await sb.from('households').select('id').eq('id', code).single();
+    if (household) {
+      await sb.from('household_members').insert({ household_id: household.id, user_id: data.user.id });
+      setStoredActiveHouseholdId(household.id);
+    } else {
+      status.textContent = '⚠️ Connecté, mais code foyer introuvable — vérifie-le dans le menu 🏠 une fois dans l\'app.';
+    }
+  }
+  location.reload();
+}
+
+async function requestPasswordReset() {
+  const email = document.getElementById('login-email').value.trim();
+  const status = document.getElementById('login-status');
+  if (!email) { status.textContent = '❌ Renseigne d\'abord ton email ci-dessus.'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin + location.pathname
+  });
+  status.style.color = error ? '#f77a6a' : '#3fb950';
+  status.textContent = error ? '❌ ' + error.message : '✅ Email envoyé — clique sur le lien reçu pour définir ton mot de passe.';
+}
+
+// Écran de définition / changement de mot de passe (arrivée depuis le lien email)
+function showSetPasswordScreen() {
+  document.body.innerHTML = `
+    <div style="max-width:340px;margin:80px auto;padding:24px;background:#161b22;border-radius:14px;border:1px solid #30363d;font-family:-apple-system,sans-serif;color:#e6edf3">
+      <h2 style="margin-bottom:14px">🔑 Nouveau mot de passe</h2>
+      <p style="font-size:.8rem;color:#8b949e;margin-bottom:14px">Choisis ton mot de passe (tu t'en serviras à chaque connexion).</p>
+      <input id="new-password" type="password" placeholder="Nouveau mot de passe" autocomplete="new-password"
+        style="width:100%;padding:10px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;margin-bottom:10px;box-sizing:border-box">
+      <button onclick="confirmSetPassword()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#4f8ef7;color:#fff;font-weight:700;cursor:pointer">Valider</button>
+      <p id="set-password-status" style="font-size:.75rem;margin-top:10px;color:#f77a6a;text-align:center"></p>
+    </div>`;
+}
+
+async function confirmSetPassword() {
+  const pw = document.getElementById('new-password').value;
+  const status = document.getElementById('set-password-status');
+  if (!pw || pw.length < 6) { status.textContent = '❌ Mot de passe trop court (6 caractères minimum).'; return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { status.textContent = '❌ ' + error.message; return; }
+  location.reload();
 }
 
 // Affiche l'écran "créer ou rejoindre un foyer"
