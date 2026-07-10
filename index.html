@@ -362,7 +362,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
   <button class="tab-save" id="btn-save-local" onclick="saveLocal()" title="Sauvegarder dans le navigateur">💾</button>
   <button class="tab-save" id="btn-share" onclick="openShareModal()" title="Partager ma simulation">📤</button>
   <button class="tab-save" id="btn-import" onclick="openImportModal()" title="Importer une simulation">📥</button>
-  <button class="tab-save" id="btn-household-code" onclick="showHouseholdCode()" title="Voir le code du foyer à partager">🏠</button>
+  <button class="tab-save" id="btn-household-code" onclick="openHouseholdModal()" title="Gérer mes foyers">🏠</button>
   <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="importFromFile(event)">
 </div>
 <div class="save-status" id="save-status"></div>
@@ -389,6 +389,15 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 </div>
 
 <!-- MODALE D'IMPORT -->
+<!-- MODALE GESTION DES FOYERS -->
+<div id="household-modal" class="share-modal-overlay" onclick="if(event.target===this) closeHouseholdModal()">
+  <div class="share-modal">
+    <h3>🏠 Mes foyers</h3>
+    <p class="share-modal-desc">Renomme le foyer actif, passe à un autre projet, ou crée/rejoins un foyer supplémentaire.</p>
+    <div id="household-modal-body"></div>
+  </div>
+</div>
+
 <div id="import-modal" class="share-modal-overlay" onclick="if(event.target===this) closeImportModal()">
   <div class="share-modal">
     <h3>📥 Importer ma simulation</h3>
@@ -720,6 +729,8 @@ function showHouseholdScreen() {
     <div style="max-width:340px;margin:80px auto;padding:24px;background:#161b22;border-radius:14px;border:1px solid #30363d;font-family:-apple-system,sans-serif;color:#e6edf3">
       <h2 style="margin-bottom:14px">🏠 Ton foyer</h2>
       <p style="font-size:.8rem;color:#8b949e;margin-bottom:10px">Première connexion ? Crée ton foyer, puis partage le code affiché avec ta compagne pour qu'elle le rejoigne.</p>
+      <input id="new-household-name" type="text" placeholder="Nom du foyer (ex: Projet Paris)"
+        style="width:100%;padding:10px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;margin-bottom:10px;box-sizing:border-box">
       <button onclick="createHousehold()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#4f8ef7;color:#fff;font-weight:700;cursor:pointer;margin-bottom:14px">➕ Créer un nouveau foyer</button>
       <hr style="border-color:#30363d;margin-bottom:14px">
       <p style="font-size:.8rem;color:#8b949e;margin-bottom:6px">Ou rejoindre avec un code reçu :</p>
@@ -731,13 +742,16 @@ function showHouseholdScreen() {
 }
 
 async function createHousehold() {
-  const { data: household, error: e1 } = await sb.from('households').insert({}).select().single();
+  const nameInput = document.getElementById('new-household-name');
+  const name = (nameInput ? nameInput.value.trim() : '') || 'Notre projet';
+  const { data: household, error: e1 } = await sb.from('households').insert({ name }).select().single();
   if (e1) { document.getElementById('household-status').textContent = '❌ ' + e1.message; return; }
   const { error: e2 } = await sb.from('household_members').insert({ household_id: household.id, user_id: currentUser.id });
   if (e2) { document.getElementById('household-status').textContent = '❌ ' + e2.message; return; }
   await sb.from('simulation_data').insert({ household_id: household.id });
+  setStoredActiveHouseholdId(household.id);
   navigator.clipboard?.writeText(household.id).catch(()=>{});
-  alert('🏠 Foyer créé !\n\nCode à partager avec ta compagne (copié dans le presse-papier) :\n\n' + household.id);
+  alert('🏠 Foyer "' + name + '" créé !\n\nCode à partager avec ta compagne (copié dans le presse-papier) :\n\n' + household.id);
   location.reload();
 }
 
@@ -748,18 +762,41 @@ async function joinHousehold() {
   if (e1 || !household) { document.getElementById('household-status').textContent = '❌ Code introuvable.'; return; }
   const { error: e2 } = await sb.from('household_members').insert({ household_id: household.id, user_id: currentUser.id });
   if (e2) { document.getElementById('household-status').textContent = '❌ ' + e2.message; return; }
+  setStoredActiveHouseholdId(household.id);
   location.reload();
 }
 
-// Point d'entrée : vérifie session → vérifie foyer → sinon lance l'app normalement
+// ── Préférence locale : quel foyer afficher par défaut sur CET appareil ──
+function getStoredActiveHouseholdId() {
+  try { return localStorage.getItem('simu_active_household_id'); } catch(e) { return null; }
+}
+function setStoredActiveHouseholdId(id) {
+  try { localStorage.setItem('simu_active_household_id', id); } catch(e) { /* tant pis */ }
+}
+
+// Liste de tous les foyers dont l'utilisateur est membre : [{id, name}]
+let myHouseholds = [];
+async function loadMyHouseholds() {
+  const { data: memberships } = await sb.from('household_members').select('household_id').eq('user_id', currentUser.id);
+  if (!memberships || !memberships.length) { myHouseholds = []; return; }
+  const ids = memberships.map(m => m.household_id);
+  const { data: households } = await sb.from('households').select('id, name').in('id', ids);
+  myHouseholds = (households || []).map(h => ({ id: h.id, name: h.name || 'Sans nom' }));
+}
+
+// Point d'entrée : vérifie session → charge la liste des foyers → choisit le foyer actif
 async function initAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { showLoginScreen(); return false; }
   currentUser = session.user;
 
-  const { data: membership } = await sb.from('household_members').select('household_id').eq('user_id', currentUser.id).limit(1).maybeSingle();
-  if (!membership) { showHouseholdScreen(); return false; }
-  currentHouseholdId = membership.household_id;
+  await loadMyHouseholds();
+  if (!myHouseholds.length) { showHouseholdScreen(); return false; }
+
+  const stored = getStoredActiveHouseholdId();
+  const match = myHouseholds.find(h => h.id === stored);
+  currentHouseholdId = match ? match.id : myHouseholds[0].id;
+  setStoredActiveHouseholdId(currentHouseholdId);
   return true; // prêt à charger l'app
 }
 
@@ -825,11 +862,89 @@ function subscribeToSupabaseChanges() {
     .subscribe();
 }
 
-// Affiche le code du foyer à partager (copiable) — utilisé juste après création,
-// et accessible ensuite via le bouton 🏠 de la barre d'onglets.
+// ── Modal de gestion des foyers : renommer, switcher, créer, rejoindre ──
+function renderHouseholdModalContent() {
+  const container = document.getElementById('household-modal-body');
+  if (!container) return;
+  const current = myHouseholds.find(h => h.id === currentHouseholdId);
+  const optionsHtml = myHouseholds.map(h =>
+    '<option value="' + h.id + '"' + (h.id === currentHouseholdId ? ' selected' : '') + '>' + esc(h.name) + '</option>'
+  ).join('');
+  container.innerHTML =
+    '<div class="fg"><label>Nom de ce foyer</label>' +
+      '<input type="text" id="household-name-input" value="' + esc(current ? current.name : '') + '"></div>' +
+    '<button class="share-modal-btn" onclick="renameHousehold(document.getElementById(\'household-name-input\').value)">✏️ Renommer</button>' +
+    '<hr style="border:none;border-top:1px solid #30363d;margin:12px 0">' +
+    (myHouseholds.length > 1
+      ? '<p class="share-modal-desc" style="margin-bottom:6px">Passer à un autre foyer :</p>' +
+        '<select id="household-switch-select" style="width:100%;padding:10px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;margin-bottom:10px;font-family:inherit;font-size:.85rem">' + optionsHtml + '</select>' +
+        '<button class="share-modal-btn" onclick="switchHousehold(document.getElementById(\'household-switch-select\').value)">🔀 Basculer sur ce foyer</button>' +
+        '<hr style="border:none;border-top:1px solid #30363d;margin:12px 0">'
+      : '') +
+    '<button class="share-modal-btn" onclick="showHouseholdCode()">📋 Copier le code à partager</button>' +
+    '<button class="share-modal-btn" onclick="createNewHousehold()">➕ Créer un nouveau foyer</button>' +
+    '<button class="share-modal-btn" onclick="joinHouseholdFromModal()">🔗 Rejoindre un autre foyer (code)</button>' +
+    '<button class="share-modal-btn secondary" onclick="closeHouseholdModal()">Fermer</button>';
+}
+
+function openHouseholdModal() {
+  renderHouseholdModalContent();
+  document.getElementById('household-modal').classList.add('show');
+}
+function closeHouseholdModal() {
+  document.getElementById('household-modal').classList.remove('show');
+}
+
+async function renameHousehold(newName) {
+  newName = (newName || '').trim();
+  if (!newName) return;
+  const { error } = await sb.from('households').update({ name: newName }).eq('id', currentHouseholdId);
+  if (error) { alert('Erreur : ' + error.message); return; }
+  await loadMyHouseholds();
+  renderHouseholdModalContent();
+  showSaveStatus('✏️ Foyer renommé en "' + newName + '"', false);
+}
+
+// Changer de foyer actif : rechargement complet, le plus sûr et le plus simple
+// (ré-exécute proprement tout le boot : chargement des bonnes données, ré-abonnement
+// temps réel sur le bon foyer, etc. — plutôt que de tenter un remplacement à chaud).
+function switchHousehold(id) {
+  if (!id || id === currentHouseholdId) { closeHouseholdModal(); return; }
+  setStoredActiveHouseholdId(id);
+  location.reload();
+}
+
+async function createNewHousehold() {
+  const name = prompt('Nom du nouveau foyer (ex : "Projet maison Lyon") :', 'Nouveau projet');
+  if (name === null) return; // annulé
+  const finalName = name.trim() || 'Nouveau projet';
+  const { data: household, error: e1 } = await sb.from('households').insert({ name: finalName }).select().single();
+  if (e1) { alert('Erreur : ' + e1.message); return; }
+  const { error: e2 } = await sb.from('household_members').insert({ household_id: household.id, user_id: currentUser.id });
+  if (e2) { alert('Erreur : ' + e2.message); return; }
+  await sb.from('simulation_data').insert({ household_id: household.id });
+  setStoredActiveHouseholdId(household.id);
+  navigator.clipboard?.writeText(household.id).catch(()=>{});
+  alert('🏠 Foyer "' + finalName + '" créé !\n\nCode à partager (copié dans le presse-papier) :\n\n' + household.id);
+  location.reload();
+}
+
+async function joinHouseholdFromModal() {
+  const code = prompt('Colle le code du foyer à rejoindre :');
+  if (!code) return;
+  const trimmed = code.trim();
+  const { data: household, error: e1 } = await sb.from('households').select('id').eq('id', trimmed).single();
+  if (e1 || !household) { alert('Code introuvable.'); return; }
+  const { error: e2 } = await sb.from('household_members').insert({ household_id: household.id, user_id: currentUser.id });
+  if (e2) { alert('Erreur : ' + e2.message); return; }
+  setStoredActiveHouseholdId(household.id);
+  location.reload();
+}
+
+// Affiche/copie le code du foyer actif (rapide, sans ouvrir tout le modal)
 function showHouseholdCode() {
   navigator.clipboard?.writeText(currentHouseholdId).catch(()=>{});
-  alert('Code du foyer (copié dans le presse-papier) :\n\n' + currentHouseholdId + '\n\nPartage-le à ta compagne pour qu\'elle rejoigne ce même foyer.');
+  alert('Code du foyer (copié dans le presse-papier) :\n\n' + currentHouseholdId + '\n\nPartage-le pour que quelqu\'un d\'autre rejoigne ce même foyer.');
 }
 
 // ══════════════════════════════════════════
