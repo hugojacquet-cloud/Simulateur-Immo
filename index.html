@@ -298,6 +298,11 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 .amort-year-title{font-size:.65rem;color:#556;letter-spacing:2px;margin-bottom:8px}
 .duree-construction-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;font-size:.72rem;color:#8b949e}
 .duree-construction-row .input-wrap{width:90px;flex:none}
+.project-start-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;font-size:.75rem;color:#c9d1d9;background:#0d1f3c;border:1px solid #4f8ef730;border-radius:10px;padding:12px 14px}
+.project-start-row input[type=date]{background:#0d1117;border:1px solid #4f8ef744;border-radius:8px;color:#e6edf3;padding:8px 10px;font-family:inherit;font-size:.82rem;outline:none;color-scheme:dark}
+.share-modal input[type=date]{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;padding:10px 12px;font-family:inherit;font-size:.9rem;outline:none;color-scheme:dark;box-sizing:border-box}
+.avenant-item{cursor:pointer}
+.avenant-item:hover{background:rgba(255,255,255,.03)}
 .amort-cell.construction{background:#3a2a10;border:1px solid #f7c44f55}
 .amort-cell.construction.paid{background:#5a4318;border-color:#f7c44f}
 .amort-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
@@ -324,6 +329,20 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 .avenant-form-row{display:flex;gap:8px}
 .avenant-form-row .input-wrap{flex:1}
 #avenant-modal select{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:8px;padding:10px 12px;font-size:.85rem;font-family:inherit;width:100%;box-sizing:border-box}
+
+/* ── MODE DE REMBOURSEMENT (linéaire / échéancier personnalisé) ── */
+.mode-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.mode-row select{flex:1;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:8px;padding:8px 10px;font-size:.76rem;font-family:inherit}
+.btn-gear{background:rgba(160,79,247,.12);border:1px solid #a04ff744;color:#a04ff7;cursor:pointer;border-radius:8px;padding:8px 11px;font-size:.85rem;line-height:1;flex-shrink:0}
+.echeancier-hdr{display:flex;gap:8px;font-size:.6rem;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;padding:0 2px}
+.echeancier-hdr span:nth-child(1),.echeancier-hdr span:nth-child(2){flex:1;text-align:center}
+.echeancier-hdr span:nth-child(3){flex:1.3;text-align:center}
+.echeancier-hdr span:nth-child(4){width:26px}
+.echeancier-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.echeancier-row input{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:8px 4px;font-size:.8rem;text-align:center;font-family:inherit;outline:none;min-width:0}
+.echeancier-row input.debut,.echeancier-row input.fin{flex:1}
+.echeancier-row input.montant{flex:1.3}
+.echeancier-row input:focus{border-color:#a04ff7}
 
 /* ── MODALE DE PARTAGE ── */
 .share-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;padding:20px}
@@ -440,12 +459,12 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 <!-- MODALE AVENANT (renégociation taux / remboursement anticipé) -->
 <div id="avenant-modal" class="share-modal-overlay" onclick="if(event.target===this) closeAvenantModal()">
   <div class="share-modal">
-    <h3>📝 Nouvel avenant</h3>
+    <h3 id="avenant-modal-title">📝 Nouvel avenant</h3>
     <p class="share-modal-desc" style="margin-bottom:-2px">À partir de quand le changement s'applique-t-il ?</p>
-    <div class="fg" style="margin-bottom:11px">
-      <input type="date" id="avenant-date" oninput="updateAvenantDateHint(this.value)" style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:8px;padding:10px 12px;font-size:.85rem;font-family:inherit;width:100%;box-sizing:border-box">
-      <p class="share-modal-desc" id="avenant-date-hint" style="margin-top:4px;margin-bottom:0"></p>
+    <div class="input-wrap taux">
+      <input type="date" id="avenant-date">
     </div>
+    <p class="share-modal-desc" id="avenant-date-hint" style="display:none;margin-top:-6px;color:#8b949e;font-style:italic"></p>
     <p class="share-modal-desc" style="margin-bottom:-2px">Type d'avenant :</p>
     <select id="avenant-type" onchange="toggleAvenantTypeFields()">
       <option value="deblocage">🏗️ Déblocage de fonds (capital augmente)</option>
@@ -474,8 +493,22 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
         <option value="mensualite">💶 Calcul auto de la nouvelle mensualité (durée inchangée)</option>
       </select>
     </div>
-    <button class="share-modal-btn" onclick="submitAvenant()">✅ Ajouter l'avenant</button>
+    <button class="share-modal-btn" id="avenant-submit-btn" onclick="submitAvenant()">✅ Ajouter l'avenant</button>
     <button class="share-modal-btn secondary" onclick="closeAvenantModal()">Annuler</button>
+  </div>
+</div>
+
+<!-- MODALE ÉCHÉANCIER PERSONNALISÉ (paliers de mensualité non linéaires) -->
+<div id="echeancier-modal" class="share-modal-overlay" onclick="if(event.target===this) closeEcheancierModal()">
+  <div class="share-modal">
+    <h3 id="echeancier-modal-title">📋 Échéancier personnalisé</h3>
+    <p class="share-modal-desc" id="echeancier-modal-desc">Définis des paliers de mensualité (hors assurance) : plage de mois → montant. Ex : mois 1 à 18 → 400 €, puis 19 à 24 → 135 €. Les intérêts et le capital remboursé sont recalculés automatiquement mois par mois à partir de ces montants.</p>
+    <div class="echeancier-hdr"><span>Du mois</span><span>Au mois</span><span>Montant €</span><span></span></div>
+    <div id="echeancier-rows"></div>
+    <button class="share-modal-btn secondary" onclick="addEcheancierRow()">＋ Ajouter une ligne</button>
+    <p id="echeancier-error" style="font-size:.7rem;color:#f77a6a;margin:0"></p>
+    <button class="share-modal-btn" onclick="saveEcheancierModal()">✅ Enregistrer</button>
+    <button class="share-modal-btn secondary" onclick="closeEcheancierModal()">Annuler</button>
   </div>
 </div>
 
@@ -627,14 +660,10 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
     <button class="btn-reset-echeancier" onclick="resetEcheancier()" title="Effacer tous les avenants et toutes les mensualités cochées">♻️ Réinitialiser</button>
   </div>
 
-  <div class="duree-construction-row" style="margin-bottom:14px">
+  <div class="project-start-row">
     <span>📅 Date de démarrage du projet (1ère échéance)</span>
-    <div class="input-wrap taux" style="width:130px">
-      <input type="month" id="project-start-date" value="" oninput="updateProjectStartDate(this.value)"
-        style="background:#0d1117;border:1px solid #ffffff18;border-radius:8px;color:#e8edf5;font-family:inherit;font-size:.85rem;padding:8px;width:100%;box-sizing:border-box">
-    </div>
+    <input type="date" id="projet-start-date" oninput="updateProjetStartDate(this.value)">
   </div>
-  <p class="share-modal-desc" id="project-start-hint" style="margin:-8px 0 14px;font-size:.65rem"></p>
 
   <div class="loans" id="remb-list"></div>
   <button class="btn-add" onclick="addRemb()">+ AJOUTER UN PRÊT</button>
@@ -895,8 +924,8 @@ async function loadFromSupabase() {
   if (typeof meta.apport === 'number')  apport = meta.apport;
   if (typeof meta.duree === 'number')   duree  = meta.duree;
   if (typeof meta.dureeConstructionMois === 'number') dureeConstructionMois = meta.dureeConstructionMois;
-  else if (typeof meta.dureeConstructionAns === 'number') dureeConstructionMois = meta.dureeConstructionAns * 12; // migration ancien champ (années)
-  if (typeof meta.projectStartDate === 'string') projectStartDate = meta.projectStartDate;
+  else if (typeof meta.dureeConstructionAns === 'number') dureeConstructionMois = meta.dureeConstructionAns * 12; // migration ancien format (années)
+  if (typeof meta.projetStartDate === 'string') projetStartDate = meta.projetStartDate;
   if (typeof meta.nextId === 'number')      nextId     = meta.nextId;
   if (typeof meta.nextRembId === 'number')  nextRembId = meta.nextRembId;
   if (loans.length && loans.some(l=>l.id>=nextId)) nextId = Math.max(...loans.map(l=>l.id))+1;
@@ -914,7 +943,7 @@ async function saveToSupabase() {
   const payload = {
     household_id: currentHouseholdId,
     loans, sections: SECTIONS, remb,
-    meta: { apport, duree, dureeConstructionMois, projectStartDate, nextId, nextRembId },
+    meta: { apport, duree, dureeConstructionMois, projetStartDate, nextId, nextRembId },
     updated_at: new Date().toISOString(),
     updated_by: currentUser.id
   };
@@ -1331,7 +1360,7 @@ function buildFullHtmlSnapshot(stripGoogleSheet) {
   src = src.replace(/let\s+remb\s*=\s*\[[\s\S]*?\];/, "let remb = " + JSON.stringify(remb) + ";");
   src = src.replace(/let\s+nextRembId\s*=\s*\d+;/, "let nextRembId = " + nextRembId + ";");
   src = src.replace(/let\s+dureeConstructionMois\s*=\s*\d+;[^\n]*/, "let dureeConstructionMois = " + dureeConstructionMois + ";");
-  src = src.replace(/let\s+projectStartDate\s*=\s*'[^']*';/, "let projectStartDate = '" + projectStartDate + "';");
+  src = src.replace(/let\s+projetStartDate\s*=\s*'[^']*';[^\n]*/, "let projetStartDate = '" + projetStartDate + "';");
 
   if (!stripGoogleSheet) return src;
 
@@ -1588,18 +1617,52 @@ async function exportPDF(tabId, btn) {
 // (indépendant de l'onglet 1 "Taux & Prêts")
 // ══════════════════════════════════════════
 let remb = [
-  {id:1, label:"Prêt bancaire", montant:230000, duree:20, taux:3.5, checked:[], avenants:[], differe:false, assuranceTaux:0, assuranceDegressive:false},
-  {id:2, label:"Prêt familial", montant:60000, duree:15, taux:0, checked:[], avenants:[], differe:false, assuranceTaux:0, assuranceDegressive:false},
-  {id:3, label:"PTZ", montant:90000, duree:20, taux:0, checked:[], avenants:[], differe:false, assuranceTaux:0, assuranceDegressive:false}
+  {id:1, label:"Prêt bancaire", montant:230000, duree:20, taux:3.5, checked:[], avenants:[], differe:false, assuranceTaux:0},
+  {id:2, label:"Prêt familial", montant:60000, duree:15, taux:0, checked:[], avenants:[], differe:false, assuranceTaux:0},
+  {id:3, label:"PTZ", montant:90000, duree:20, taux:0, checked:[], avenants:[], differe:false, assuranceTaux:0}
 ];
 let nextRembId = 4;
-let dureeConstructionMois = 0; // repère visuel global (MOIS) pour teinter la phase différé dans le tableau d'amortissement
-// Date de démarrage du projet (1ère échéance), format 'YYYY-MM'. Sert de base
-// pour convertir les dates réelles des avenants en index de mois (0 = ce
-// mois-là), et pour calculer le nombre de jours réels de chaque mois civil
-// (utile au prorata des intérêts intercalaires lors d'un déblocage en cours
-// de mois).
-let projectStartDate = '';
+let dureeConstructionMois = 0; // repère visuel global (mois) pour teinter la phase différé dans le tableau d'amortissement
+let projetStartDate = ''; // date ISO (YYYY-MM-DD) de la 1ère échéance — ancre calendaire pour tous les prêts et avenants
+
+function updateProjetStartDate(value) {
+  projetStartDate = value || '';
+  renderAmortTable();
+  showSaveStatus('✓ Date de démarrage mise à jour (pense à sauvegarder 💾)', false);
+}
+
+// ══════════════════════════════════════════
+// UTILITAIRES DE DATE (ancrage calendaire réel du projet)
+// ══════════════════════════════════════════
+// Ajoute `n` mois à une date ISO (YYYY-MM-DD) et renvoie un objet Date.
+// Les "mois" du prêt sont ancrés sur le jour de démarrage du projet (pas
+// forcément le 1er du mois calendaire) : le mois i couvre exactement
+// [addMonthsDate(start,i), addMonthsDate(start,i+1)).
+function addMonthsDate(dateISO, n) {
+  const d = new Date(dateISO + 'T00:00:00');
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+// Nombre de jours entiers entre deux objets Date (d2 - d1)
+function daysBetweenDates(d1, d2) {
+  return Math.round((d2.getTime() - d1.getTime()) / 86400000);
+}
+// Index de mois (0-based) du prêt dans lequel tombe une date réelle, par
+// rapport à la date de démarrage du projet.
+function computeAvenantMonthIndex(startISO, dateISO) {
+  if (!startISO || !dateISO) return 0;
+  const start = new Date(startISO + 'T00:00:00');
+  const d = new Date(dateISO + 'T00:00:00');
+  let months = (d.getFullYear() - start.getFullYear()) * 12 + (d.getMonth() - start.getMonth());
+  if (d.getDate() < start.getDate()) months -= 1; // le mois n'est pas encore entièrement écoulé
+  return Math.max(0, months);
+}
+// Formate une date ISO en JJ/MM/AAAA pour l'affichage
+function formatDateFR(dateISO) {
+  if (!dateISO) return '';
+  const d = new Date(dateISO + 'T00:00:00');
+  return d.toLocaleDateString('fr-FR');
+}
 
 function toggleGsheetSection() {
   const el = document.getElementById('gsheet-collapsible');
@@ -1612,55 +1675,6 @@ function toggleGsheetSection() {
 function updateDureeConstruction(value) {
   dureeConstructionMois = parseInt(value) || 0;
   renderAmortTable();
-}
-
-function updateProjectStartDate(value) {
-  projectStartDate = value || '';
-  renderProjectStartHint();
-  renderRemb(); // les avenants dépendent de cette date pour calculer leur index de mois
-}
-
-function renderProjectStartHint() {
-  const hint = document.getElementById('project-start-hint');
-  if (!hint) return;
-  hint.textContent = projectStartDate
-    ? '✅ Les avenants pourront être datés en jour réel (utile pour le calcul des intérêts au prorata).'
-    : '⚠️ Renseigne la date pour pouvoir ajouter des avenants datés (fin de différé, déblocages…).';
-}
-
-// ── Utilitaires calendaires (date réelle ↔ index de mois du prêt) ──
-function daysInCalMonth(y, m) { return new Date(y, m, 0).getDate(); } // m = 1-12
-function parseISODate(s) {
-  const [y, m, d] = String(s).split('-').map(Number);
-  return { y, m, d };
-}
-// Convertit une date réelle ('YYYY-MM-DD') en index de mois (0 = mois de
-// démarrage du projet), en se basant sur projectStartDate ('YYYY-MM').
-function monthIndexFromStart(dateStr) {
-  if (!projectStartDate || !dateStr) return 0;
-  const [sy, sm] = projectStartDate.split('-').map(Number);
-  const { y, m } = parseISODate(dateStr);
-  return (y - sy) * 12 + (m - sm);
-}
-// Calcule l'année/mois civils correspondant à l'index de mois `idx` du prêt
-// (0 = mois de démarrage du projet).
-function calendarMonthForIndex(idx) {
-  if (!projectStartDate) return null;
-  const [sy, sm] = projectStartDate.split('-').map(Number);
-  const total = (sm - 1) + idx;
-  const y = sy + Math.floor(total / 12);
-  const m = (total % 12) + 1;
-  return { y, m };
-}
-function formatDateFR(dateStr) {
-  if (!dateStr) return '';
-  const { y, m, d } = parseISODate(dateStr);
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-function formatMonthFR(y, m) {
-  const dt = new Date(y, m - 1, 1);
-  return dt.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 }
 
 // États d'une case : 0 = vide (à venir) · 1 = payée · 2 = sautée
@@ -1681,15 +1695,9 @@ function ensureAvenants(loan) {
   if (!Array.isArray(loan.avenants)) loan.avenants = [];
   if (typeof loan.differe !== 'boolean') loan.differe = false;
   if (loan.assuranceTaux === undefined || loan.assuranceTaux === null) loan.assuranceTaux = 0;
-  // Compatibilité ascendante : les prêts sauvegardés avant l'ajout du mode
-  // d'assurance dégressif utilisaient tous le mode "capital initial" (constant).
-  if (typeof loan.assuranceDegressive !== 'boolean') loan.assuranceDegressive = false;
-  // Compatibilité ascendante : anciens avenants stockés en année/mois relatif
-  // (avant le passage aux dates réelles) — sans date réelle, on ne peut plus
-  // les positionner dans le temps ; on les neutralise à défaut de date (ils
-  // resteront visibles dans l'historique mais ignorés du calcul tant qu'une
-  // date n'est pas renseignée manuellement en les recréant).
-  (loan.avenants || []).forEach(a => { if (!a.date && a.annee) { /* ancien format, non convertible sans date de départ connue à l'époque */ } });
+  if (loan.mode !== 'lineaire' && loan.mode !== 'echeancier') loan.mode = 'lineaire'; // champ hérité, plus utilisé (conservé pour compatibilité silencieuse avec d'anciennes sauvegardes)
+  if (!Array.isArray(loan.echeancierRanges)) loan.echeancierRanges = [];
+  if (!Array.isArray(loan.assuranceRanges)) loan.assuranceRanges = [];
 }
 
 // Migration : d'anciennes sauvegardes stockaient true/false au lieu de 0/1/2
@@ -1701,7 +1709,7 @@ function normalizeRembStates() {
 }
 
 function addRemb() {
-  remb.push({id: nextRembId++, label: "", montant: "", duree: 20, taux: "", checked: [], avenants: [], differe: false, assuranceTaux: '', assuranceDegressive: false});
+  remb.push({id: nextRembId++, label: "", montant: "", duree: 20, taux: "", checked: [], avenants: [], differe: false, assuranceTaux: '', mode: 'lineaire', echeancierRanges: []});
   renderRemb();
 }
 
@@ -1744,15 +1752,6 @@ function updateRemb(id, field, value) {
 // PAR-DESSUS ce capital déjà complet au lieu de le construire progressivement,
 // ce qui gonflerait artificiellement la dette. On les retire donc, avec
 // confirmation de l'utilisateur avant d'y toucher.
-function toggleAssuranceDegressive(id, checked) {
-  const loan = remb.find(l => l.id === id);
-  if (!loan) return;
-  ensureAvenants(loan);
-  loan.assuranceDegressive = checked;
-  renderRemb();
-  showSaveStatus('✓ Prêt mis à jour (pense à sauvegarder 💾)', false);
-}
-
 async function toggleDiffere(id, checked) {
   const loan = remb.find(l => l.id === id);
   if (!loan) return;
@@ -1776,6 +1775,107 @@ async function toggleDiffere(id, checked) {
   loan.differe = checked;
   renderRemb();
   showSaveStatus('✓ Prêt mis à jour (pense à sauvegarder 💾)', false);
+}
+
+// ══════════════════════════════════════════
+// ÉCHÉANCIER PERSONNALISÉ : paliers de mensualité saisis à la main (surcouche
+// optionnelle, jamais un "mode" à part — voir computeAmortSchedule)
+// ══════════════════════════════════════════
+let echeancierModalState = null; // { loanId, kind:'capital'|'assurance', rows:[{debut,fin,montant}] } — état d'édition temporaire de la modale
+
+function openEcheancierModal(loanId, kind) {
+  kind = kind === 'assurance' ? 'assurance' : 'capital';
+  const loan = remb.find(l => l.id === loanId);
+  if (!loan) return;
+  ensureAvenants(loan);
+  const field = kind === 'assurance' ? 'assuranceRanges' : 'echeancierRanges';
+  echeancierModalState = {
+    loanId, kind,
+    rows: loan[field].length
+      ? loan[field].map(r => ({ debut: String(r.debut), fin: String(r.fin), montant: String(r.montant) }))
+      : [{ debut: '1', fin: '', montant: '' }]
+  };
+  document.getElementById('echeancier-modal-title').textContent = kind === 'assurance' ? '🛡️ Paliers d\'assurance personnalisés' : '📋 Échéancier personnalisé';
+  document.getElementById('echeancier-modal-desc').textContent = kind === 'assurance'
+    ? 'Définis des paliers de cotisation d\'assurance (au lieu du taux constant) : plage de mois → montant. Ex : mois 1 à 12 → 15€, puis 13 à 300 → 22€.'
+    : 'Définis des paliers de mensualité (hors assurance) : plage de mois → montant. Ex : mois 1 à 18 → 400 €, puis 19 à 24 → 135 €. Les intérêts et le capital remboursé sont recalculés automatiquement mois par mois à partir de ces montants.';
+  document.getElementById('echeancier-error').textContent = '';
+  renderEcheancierRows();
+  document.getElementById('echeancier-modal').classList.add('show');
+}
+function closeEcheancierModal() {
+  document.getElementById('echeancier-modal').classList.remove('show');
+  echeancierModalState = null;
+}
+function renderEcheancierRows() {
+  const c = document.getElementById('echeancier-rows');
+  if (!c || !echeancierModalState) return;
+  c.innerHTML = echeancierModalState.rows.map((row, idx) =>
+    '<div class="echeancier-row">' +
+      '<input class="debut" type="text" inputmode="numeric" placeholder="1" value="' + esc(row.debut) + '" ' +
+        'oninput="updateEcheancierRow(' + idx + ',\'debut\',this.value.replace(/[^0-9]/g,\'\'))" />' +
+      '<input class="fin" type="text" inputmode="numeric" placeholder="18" value="' + esc(row.fin) + '" ' +
+        'oninput="updateEcheancierRow(' + idx + ',\'fin\',this.value.replace(/[^0-9]/g,\'\'))" />' +
+      '<input class="montant" type="text" inputmode="decimal" placeholder="400" value="' + esc(row.montant) + '" ' +
+        'oninput="updateEcheancierRow(' + idx + ',\'montant\',this.value.replace(/[^0-9.,]/g,\'\'))" />' +
+      '<button class="avenant-del" onclick="removeEcheancierRow(' + idx + ')">×</button>' +
+    '</div>'
+  ).join('');
+}
+function updateEcheancierRow(idx, field, val) {
+  if (!echeancierModalState || !echeancierModalState.rows[idx]) return;
+  echeancierModalState.rows[idx][field] = val;
+}
+function addEcheancierRow() {
+  if (!echeancierModalState) return;
+  const rows = echeancierModalState.rows;
+  const last = rows[rows.length - 1];
+  const nextStart = (last && last.fin) ? String(parseInt(last.fin) + 1) : '';
+  rows.push({ debut: nextStart, fin: '', montant: '' });
+  renderEcheancierRows();
+}
+function removeEcheancierRow(idx) {
+  if (!echeancierModalState) return;
+  echeancierModalState.rows.splice(idx, 1);
+  renderEcheancierRows();
+}
+function saveEcheancierModal() {
+  if (!echeancierModalState) return;
+  const loan = remb.find(l => l.id === echeancierModalState.loanId);
+  const errorEl = document.getElementById('echeancier-error');
+  if (!loan) return;
+
+  const parsed = echeancierModalState.rows
+    .map(r => ({
+      debut: parseInt(r.debut) || 0,
+      fin: parseInt(r.fin) || 0,
+      montant: parseFloat(String(r.montant).replace(',', '.')) || 0
+    }))
+    .filter(r => r.debut > 0 || r.fin > 0 || r.montant > 0); // ignore les lignes totalement vides
+
+  if (parsed.length) {
+    for (const r of parsed) {
+      if (r.debut < 1 || r.fin < 1) { errorEl.textContent = '⚠️ Chaque ligne doit avoir un mois de début et de fin.'; return; }
+      if (r.fin < r.debut) { errorEl.textContent = '⚠️ Le mois de fin doit être ≥ au mois de début (ligne ' + r.debut + '-' + r.fin + ').'; return; }
+      if (r.montant < 0) { errorEl.textContent = '⚠️ Les montants doivent être positifs ou nuls.'; return; }
+    }
+    parsed.sort((a, b) => a.debut - b.debut);
+    for (let i = 1; i < parsed.length; i++) {
+      if (parsed[i].debut <= parsed[i - 1].fin) {
+        errorEl.textContent = '⚠️ Les plages se chevauchent (' + parsed[i - 1].debut + '-' + parsed[i - 1].fin + ' et ' + parsed[i].debut + '-' + parsed[i].fin + ').';
+        return;
+      }
+    }
+  }
+  // Une liste vide est valide : ça revient simplement à retirer tous les
+  // paliers (le prêt repasse en annuité pure, sans avoir besoin d'un "mode").
+
+  const targetField = echeancierModalState.kind === 'assurance' ? 'assuranceRanges' : 'echeancierRanges';
+  loan[targetField] = parsed;
+  closeEcheancierModal();
+  renderRemb();
+  const label = echeancierModalState.kind === 'assurance' ? 'Paliers d\'assurance' : 'Échéancier personnalisé';
+  showSaveStatus(parsed.length ? '✓ ' + label + ' enregistré (pense à sauvegarder 💾)' : '✓ Paliers supprimés (pense à sauvegarder 💾)', false);
 }
 
 // Valide les modifications de montant / durée / taux, avec protection anti-perte de données
@@ -1832,33 +1932,55 @@ function computeAmortSchedule(loan) {
   ensureCheckedLength(loan);
   const SAFETY_MAX = 1200; // 100 ans — garde-fou anti-boucle infinie, jamais atteint en usage normal
   let n = loan.checked.length; // nombre de mensualités visé, utilisé en mode "annuité"/"fixe"
-  // Les avenants sont désormais datés en vrai (loan.avenants[].date = 'YYYY-MM-DD').
-  // On calcule leur index de mois (atMonth) et leur jour du mois à la volée, à
-  // partir de projectStartDate — ainsi tout changement de date de démarrage du
-  // projet se répercute automatiquement, sans ré-écrire les avenants existants.
-  const avenants = (loan.avenants || [])
-    .map(a => ({ ...a, atMonth: monthIndexFromStart(a.date), dayOfMonth: a.date ? parseISODate(a.date).d : 1 }))
-    .sort((a, b) => a.atMonth - b.atMonth || a.dayOfMonth - b.dayOfMonth);
+  // atMonth est recalculé dynamiquement à partir de la date réelle de l'avenant
+  // et de la date de démarrage du projet, plutôt que stocké figé — ainsi, si la
+  // date de démarrage change plus tard, tous les avenants se repositionnent
+  // automatiquement. Rétrocompatibilité : un avenant sans dateISO (ancien
+  // format "Année X, Mois Y") garde son atMonth déjà calculé à la création.
+  const avenants = (loan.avenants || []).map(a => ({
+    ...a,
+    atMonth: (a.dateISO && projetStartDate) ? computeAvenantMonthIndex(projetStartDate, a.dateISO) : (a.atMonth || 0)
+  })).sort((a, b) => a.atMonth - b.atMonth);
+  // Paliers d'échéancier personnalisé (capital) : simple SURCOUCHE optionnelle,
+  // jamais un "mode" à part. Pour chaque mois hors différé, si un palier couvre
+  // ce mois, son montant remplace la mensualité calculée par annuité — sinon le
+  // calcul normal (annuité / fixe) s'applique. La phase différé (intérêts
+  // seuls) est TOUJOURS prioritaire et n'est jamais court-circuitée par un
+  // palier, pour que les frais intercalaires restent corrects et jamais
+  // comptés comme du capital remboursé.
+  const echeancierRanges = (loan.echeancierRanges || []).slice().sort((a, b) => a.debut - b.debut);
+  // Paliers d'assurance personnalisés : même principe, mais pour le montant
+  // d'assurance (qui autrement est une cotisation constante calculée sur le
+  // capital initial).
+  const assuranceRanges = (loan.assuranceRanges || []).slice().sort((a, b) => a.debut - b.debut);
   // Pour un prêt avec différé (construction) : le capital réellement dû démarre à 0
   // et n'augmente qu'au fil des avenants "déblocage" — le champ montant représente
   // alors l'enveloppe totale prévue, pas le capital immédiatement dû.
   let capital = loan.differe ? 0 : (parseFloat(loan.montant) || 0);
-  // Base fixe pour l'assurance en mode "capital initial" : cotisation CONSTANTE
-  // tout au long du prêt, calculée une fois pour toutes sur le montant emprunté
-  // au départ (pratique standard des banques françaises). En mode "dégressif"
-  // (loan.assuranceDegressive), la cotisation est recalculée chaque mois sur le
-  // capital restant dû (`capital`) — pratique utilisée par certains contrats
-  // qui l'indiquent explicitement (assurance déléguée, cotisation dégressive).
-  const montantInitialAssurance = parseFloat(loan.montant) || 0;
+  // Base fixe pour l'assurance : en pratique bancaire française, l'assurance
+  // emprunteur est très majoritairement calculée sur le "capital initial" (le
+  // montant total emprunté à la signature), avec une cotisation CONSTANTE tout
+  // au long du prêt — contrairement à l'assurance sur "capital restant dû"
+  // (dégressive), plus rare et surtout proposée par les assurances externes en
+  // délégation. On modélise donc ici le cas standard d'un prêt bancaire.
+  const montantTotal = parseFloat(loan.montant) || 0; // enveloppe/montant total contractuel du prêt
+  const montantInitialAssurance = montantTotal;
   let t = (parseFloat(loan.taux) || 0) / 100 / 12;
-  let tAnnuel = parseFloat(loan.taux) || 0; // conservé à part pour le calcul journalier (prorata)
   let ta = (parseFloat(loan.assuranceTaux) || 0) / 100 / 12; // taux d'assurance mensuel
   let avenantIdx = 0;
   let lastMens = 0;
+  // Suivi du "capital restant dû total" affiché dans les récaps : représente
+  // montant total emprunté − capital effectivement remboursé (principal payé),
+  // SANS jamais être impacté par le fait qu'une partie ne soit pas encore
+  // débloquée — contrairement à la variable "capital" ci-dessus qui, elle, ne
+  // suit que ce qui a été réellement débloqué (et sert au calcul des intérêts,
+  // qui eux ne courent bien sûr que sur les sommes réellement débloquées).
+  let capitalRembourseCumule = 0;
   // mode 'interet_seul' : phase différé — on ne paie que les intérêts sur le
   //   capital déjà débloqué, le capital ne se réduit jamais tout seul.
   // mode 'annuite' (par défaut si pas de différé) : mensualité recalculée chaque
-  //   mois pour amortir le capital sur les "slots" restants (n - i).
+  //   mois pour amortir le capital sur les "slots" restants (n - i), sauf si un
+  //   palier d'échéancier personnalisé couvre ce mois (auquel cas il prime).
   // mode 'fixe' (avenant "durée réduite/allongée") : mensualité verrouillée à sa
   //   valeur d'avant l'avenant ; seule la toute dernière échéance s'ajuste pour
   //   clôturer pile, exactement comme le ferait une banque.
@@ -1867,56 +1989,62 @@ function computeAmortSchedule(loan) {
   const rows = [];
 
   for (let i = 0; i < n && i < SAFETY_MAX; i++) {
-    // Phase différé uniquement : on suit les segments de capital/taux au sein
-    // du mois pour calculer les intérêts au prorata du nombre de jours réels
-    // (comme le fait une banque pour un déblocage ou un changement de taux en
-    // cours de mois — "intérêts intercalaires"). Un seul segment = pas
-    // d'événement ce mois-ci, calcul mensuel classique inchangé.
-    let monthSegments = mode === 'interet_seul' ? [{ capital, tAnnuel, fromDay: 1 }] : null;
+    const modeAtStartOfMonth = mode;
+    // Bornes calendaires réelles du mois i (ancrées sur le jour de démarrage
+    // du projet), utilisées pour le prorata journalier des intérêts pendant
+    // la phase différé. Sans date de démarrage renseignée, pas de prorata
+    // possible : chaque avenant s'applique alors intégralement dès le 1er
+    // jour de son mois (comportement précédent, dégradé mais sûr).
+    const monthStartDate = projetStartDate ? addMonthsDate(projetStartDate, i) : null;
+    const monthEndDate = projetStartDate ? addMonthsDate(projetStartDate, i + 1) : null;
+    const totalDaysInMonth = (monthStartDate && monthEndDate) ? Math.max(1, daysBetweenDates(monthStartDate, monthEndDate)) : 30;
+    // Segments {capital, t, days} pour le calcul d'intérêt au prorata en phase
+    // différé uniquement (voir plus bas) — un déblocage ou un changement de
+    // taux en cours de mois de construction n'impacte les intérêts qu'à
+    // partir de son jour exact, pas depuis le 1er du mois.
+    const daySegments = [];
+    let segCapital = capital, segT = t, segStartDay = 0;
 
     // Applique tous les avenants qui prennent effet à ce mois précis
     while (avenantIdx < avenants.length && avenants[avenantIdx].atMonth === i) {
       const av = avenants[avenantIdx];
-      let segmentChange = false;
+
+      // Découpe le segment d'intérêt au prorata AVANT d'appliquer l'avenant,
+      // uniquement si on est en différé avec une date de démarrage connue et
+      // une date précise sur l'avenant (sinon repli sur l'ancien comportement
+      // "effet dès le 1er jour du mois").
+      if (modeAtStartOfMonth === 'interet_seul' && projetStartDate && av.dateISO &&
+          (av.type === 'deblocage' || av.type === 'taux' || av.type === 'remb_anticipe')) {
+        const avDate = new Date(av.dateISO + 'T00:00:00');
+        let dayOffset = daysBetweenDates(monthStartDate, avDate);
+        dayOffset = Math.max(0, Math.min(totalDaysInMonth, dayOffset));
+        if (dayOffset > segStartDay) {
+          daySegments.push({ capital: segCapital, t: segT, days: dayOffset - segStartDay });
+          segStartDay = dayOffset;
+        }
+      }
+
       if (av.type === 'taux') {
-        tAnnuel = parseFloat(av.nouveauTaux) || 0;
-        t = tAnnuel / 100 / 12;
-        segmentChange = true;
+        t = (parseFloat(av.nouveauTaux) || 0) / 100 / 12;
       } else if (av.type === 'remb_anticipe') {
-        capital = Math.max(0, capital - (parseFloat(av.montant) || 0));
-        segmentChange = true;
+        const montantRembourse = Math.min(parseFloat(av.montant) || 0, capital);
+        capital = Math.max(0, capital - montantRembourse);
+        capitalRembourseCumule += montantRembourse;
       } else if (av.type === 'deblocage') {
-        // Appel de fonds / déblocage d'une enveloppe : augmente le capital dû.
+        // Appel de fonds / déblocage d'une enveloppe : augmente le capital dû
+        // (mais ne change RIEN au capital restant dû total, qui reste basé sur
+        // le montant contractuel dès le départ).
         capital = capital + (parseFloat(av.montant) || 0);
-        segmentChange = true;
       } else if (av.type === 'debut_capital') {
         // Fin du différé : à partir d'ici on rembourse le capital, sur la durée
         // d'amortissement du prêt (loan.duree), qui démarre maintenant.
-        // (La transition de phase elle-même n'est pas prorata-isée dans le mois :
-        // on considère que le passage prend effet au mois entier choisi.)
         mode = 'annuite';
         n = i + Math.max(1, Math.round((parseFloat(loan.duree) || 0) * 12));
-        monthSegments = null;
       } else if (av.type === 'assurance') {
         ta = (parseFloat(av.nouvelleAssuranceTaux) || 0) / 100 / 12;
       }
 
-      if (segmentChange && monthSegments) {
-        const lastSeg = monthSegments[monthSegments.length - 1];
-        if (av.dayOfMonth <= lastSeg.fromDay) {
-          // Aucun jour ne s'est encore écoulé dans le segment courant (ex : un
-          // avenant qui prend effet le 1er du mois, jour de départ du segment) :
-          // on met juste à jour ses valeurs, sans créer de segment redondant
-          // qui compterait ce jour deux fois.
-          lastSeg.capital = capital;
-          lastSeg.tAnnuel = tAnnuel;
-        } else {
-          // Ferme le segment en cours au jour précédant l'événement, en ouvre
-          // un nouveau à partir du jour de l'avenant avec les valeurs à jour.
-          lastSeg.toDay = av.dayOfMonth - 1;
-          monthSegments.push({ capital, tAnnuel, fromDay: av.dayOfMonth });
-        }
-      }
+      segCapital = capital; segT = t;
 
       // Le choix "durée / mensualité" ne concerne que le remb. anticipé et le
       // changement de taux pendant une phase d'amortissement déjà démarrée —
@@ -1948,30 +2076,40 @@ function computeAmortSchedule(loan) {
       avenantIdx++;
     }
     if ((mode === 'annuite' || mode === 'fixe') && capital <= 0.005) break;
+    // Ferme le dernier segment du mois jusqu'à sa fin, si des découpes ont eu lieu.
+    if (daySegments.length && totalDaysInMonth > segStartDay) {
+      daySegments.push({ capital: segCapital, t: segT, days: totalDaysInMonth - segStartDay });
+    }
 
-    let mens, interet, principal;
+    let mens, interet, principal, phaseThisMonth;
+    const monthNum = i + 1;
+    const range = mode !== 'interet_seul' ? echeancierRanges.find(rg => monthNum >= rg.debut && monthNum <= rg.fin) : null;
     if (mode === 'interet_seul') {
-      if (monthSegments && monthSegments.length > 1 && projectStartDate) {
-        // Au moins un déblocage/changement de taux ce mois-ci : on calcule les
-        // intérêts au prorata du nombre de jours réels de chaque segment,
-        // exactement comme le ferait une banque pour un appel de fonds en
-        // cours de mois (intérêts intercalaires).
-        const cal = calendarMonthForIndex(i);
-        const dim = cal ? daysInCalMonth(cal.y, cal.m) : 30;
-        monthSegments[monthSegments.length - 1].toDay = dim;
-        interet = monthSegments.reduce((sum, seg) => {
-          const jours = Math.max(0, seg.toDay - seg.fromDay + 1);
-          return sum + seg.capital * (seg.tAnnuel / 100 / 365) * jours;
-        }, 0);
-      } else {
-        interet = capital * t; // pas d'événement ce mois-ci (ou date de démarrage non renseignée) : calcul mensuel classique
-      }
+      // Différé : toujours prioritaire, jamais remplacé par un palier
+      // d'échéancier personnalisé — ce sont de purs frais intercalaires.
+      // Si le mois a été découpé (déblocage/taux/remb.anticipé en cours de
+      // mois), l'intérêt est calculé au prorata exact du nombre de jours
+      // passés dans chaque état plutôt que sur le capital de fin de mois.
+      interet = daySegments.length
+        ? daySegments.reduce((s, seg) => s + seg.capital * seg.t * (seg.days / totalDaysInMonth), 0)
+        : capital * t;
       mens = interet; // on ne paie que les intérêts, aucun capital remboursé
       principal = 0;
+      phaseThisMonth = 'interet_seul';
+    } else if (range) {
+      // Palier d'échéancier personnalisé actif ce mois-ci : remplace le calcul
+      // d'annuité pour ce mois précis. Intérêts/capital restent décomposés
+      // normalement à partir du montant saisi par l'utilisateur.
+      const target = parseFloat(range.montant) || 0;
+      interet = capital * t;
+      mens = Math.min(target, capital + interet); // la dernière échéance ne rembourse jamais plus que le capital + intérêts dus
+      principal = mens - interet;
+      phaseThisMonth = 'echeancier';
     } else if (mode === 'fixe') {
       interet = capital * t;
       mens = Math.min(fixedPayment, capital + interet); // seule la dernière échéance peut différer
       principal = mens - interet;
+      phaseThisMonth = 'fixe';
     } else {
       const slots = Math.max(0, n - i);
       interet = capital * t;
@@ -1979,10 +2117,18 @@ function computeAmortSchedule(loan) {
         ? (slots ? capital * t / (1 - Math.pow(1 + t, -slots)) : capital + interet)
         : (slots ? capital / slots : capital);
       principal = mens - interet;
+      phaseThisMonth = 'annuite';
     }
     const state = loan.checked[i] || 0;
-    const assurance = (loan.assuranceDegressive ? capital : montantInitialAssurance) * ta;
-    rows.push({ i, state, mens, interet, principal, capitalAvant: capital, assurance, phase: mode });
+    // Assurance : palier personnalisé s'il couvre ce mois, sinon cotisation
+    // CONSTANTE sur le capital initial (pratique standard des banques
+    // françaises), qu'il reste beaucoup ou peu de capital à rembourser.
+    const assuranceRange = assuranceRanges.find(rg => monthNum >= rg.debut && monthNum <= rg.fin);
+    const assurance = assuranceRange ? (parseFloat(assuranceRange.montant) || 0) : (montantInitialAssurance * ta);
+    rows.push({
+      i, state, mens, interet, principal, capitalAvant: capital, assurance, phase: phaseThisMonth,
+      capitalRestantTotal: Math.max(0, montantTotal - capitalRembourseCumule)
+    });
     lastMens = mens;
     if (state === 2) {
       // Mensualité sautée : le capital n'est pas remboursé CE mois-ci, mais les
@@ -1995,9 +2141,11 @@ function computeAmortSchedule(loan) {
       // l'échéancier projeté normalement (principal = 0 en phase différé, donc
       // le capital reste stable tant qu'aucun déblocage n'intervient).
       capital = Math.max(0, capital - principal);
+      capitalRembourseCumule += Math.max(0, principal);
     }
   }
-  rows.capitalFinal = capital; // capital restant dû après la dernière ligne calculée
+  rows.capitalFinal = capital; // capital restant dû (disbursement) après la dernière ligne calculée
+  rows.capitalFinalTotal = Math.max(0, montantTotal - capitalRembourseCumule); // capital restant dû total (vision contractuelle)
   return rows;
 }
 
@@ -2005,7 +2153,8 @@ function computeAmortSchedule(loan) {
 // AVENANTS (renégociation de taux / remboursement anticipé)
 // ══════════════════════════════════════════
 function describeAvenant(av) {
-  const when = av.date ? formatDateFR(av.date) : '(date manquante)';
+  // Rétrocompatibilité : anciens avenants "Année X, Mois Y" sans date réelle
+  const when = av.dateISO ? formatDateFR(av.dateISO) : ('Année ' + av.annee + ', mois ' + av.moisDansAnnee);
   const modeLabel = av.mode === 'duree' ? 'mensualité ~stable, durée ajustée' : 'durée identique, mensualité ajustée';
   if (av.type === 'remb_anticipe') {
     return when + ' — 💰 Remb. anticipé de ' + eurP(av.montant) + ' (' + modeLabel + ')';
@@ -2023,34 +2172,37 @@ function describeAvenant(av) {
 }
 
 let avenantModalLoanId = null;
-function openAvenantModal(loanId) {
-  if (!projectStartDate) {
-    alert('Renseigne d\'abord la date de démarrage du projet (en haut de cet onglet) : elle sert de référence pour dater les avenants et calculer les intérêts au prorata des jours réels.');
-    return;
-  }
+let avenantModalEditId = null; // null = création, sinon id de l'avenant en cours d'édition
+function openAvenantModal(loanId, avenantId) {
   avenantModalLoanId = loanId;
-  document.getElementById('avenant-date').value = '';
-  document.getElementById('avenant-date-hint').textContent = '';
-  document.getElementById('avenant-type').value = 'remb_anticipe';
-  document.getElementById('avenant-montant').value = '';
-  document.getElementById('avenant-taux').value = '';
-  document.getElementById('avenant-assurance').value = '';
-  document.getElementById('avenant-mode').value = 'duree';
+  avenantModalEditId = avenantId || null;
+  const loan = remb.find(l => l.id === loanId);
+  const editing = avenantModalEditId != null && loan ? (loan.avenants || []).find(a => a.id === avenantModalEditId) : null;
+
+  document.getElementById('avenant-modal-title').textContent = editing ? '✏️ Modifier l\'avenant' : '📝 Nouvel avenant';
+  document.getElementById('avenant-submit-btn').textContent = editing ? '✅ Enregistrer les modifications' : '✅ Ajouter l\'avenant';
+  document.getElementById('avenant-date').value = editing ? (editing.dateISO || '') : '';
+  document.getElementById('avenant-type').value = editing ? editing.type : 'remb_anticipe';
+  document.getElementById('avenant-montant').value = editing ? (editing.montant || '') : '';
+  document.getElementById('avenant-taux').value = editing ? (editing.nouveauTaux != null ? editing.nouveauTaux : '') : '';
+  document.getElementById('avenant-assurance').value = editing ? (editing.nouvelleAssuranceTaux != null ? editing.nouvelleAssuranceTaux : '') : '';
+  document.getElementById('avenant-mode').value = editing ? (editing.mode || 'duree') : 'duree';
+
+  const hint = document.getElementById('avenant-date-hint');
+  if (!projetStartDate) {
+    hint.textContent = '⚠️ Aucune date de démarrage du projet définie en haut de l\'onglet : le calcul restera possible mais sans prorata journalier précis.';
+    hint.style.display = '';
+  } else {
+    hint.style.display = 'none';
+  }
+
   toggleAvenantTypeFields();
   document.getElementById('avenant-modal').classList.add('show');
 }
 function closeAvenantModal() {
   document.getElementById('avenant-modal').classList.remove('show');
   avenantModalLoanId = null;
-}
-function updateAvenantDateHint(dateStr) {
-  const hint = document.getElementById('avenant-date-hint');
-  if (!hint) return;
-  if (!dateStr || !projectStartDate) { hint.textContent = ''; return; }
-  const idx = monthIndexFromStart(dateStr);
-  if (idx < 0) { hint.textContent = '⚠️ Antérieur à la date de démarrage du projet.'; return; }
-  const { d } = parseISODate(dateStr);
-  hint.textContent = '➡️ Mois ' + (idx + 1) + ' du prêt' + (d > 1 ? ' — intérêts calculés au prorata à partir du ' + d + (d===1?'er':'') + ' du mois' : '');
+  avenantModalEditId = null;
 }
 function toggleAvenantTypeFields() {
   const type = document.getElementById('avenant-type').value;
@@ -2068,10 +2220,10 @@ function toggleAvenantTypeFields() {
     const loan = remb.find(l => l.id === avenantModalLoanId);
     if (loan) {
       const dejaDebloque = (loan.avenants || [])
-        .filter(a => a.type === 'deblocage')
+        .filter(a => a.type === 'deblocage' && a.id !== avenantModalEditId) // exclut l'avenant en cours d'édition de son propre total
         .reduce((s, a) => s + (parseFloat(a.montant) || 0), 0);
       const enveloppe = parseFloat(loan.montant) || 0;
-      hint.textContent = 'Déjà débloqué : ' + eurP(dejaDebloque) + ' / ' + eurP(enveloppe);
+      hint.textContent = 'Déjà débloqué (hors cet avenant) : ' + eurP(dejaDebloque) + ' / ' + eurP(enveloppe);
       hint.style.display = '';
     }
   } else if (hint) {
@@ -2083,17 +2235,14 @@ function submitAvenant() {
   if (!loan) return;
   ensureAvenants(loan);
 
-  const date = document.getElementById('avenant-date').value;
-  if (!date) { alert('Indique une date valide.'); return; }
-  if (projectStartDate && monthIndexFromStart(date) < 0) {
-    alert('Cette date est antérieure à la date de démarrage du projet (' + projectStartDate + ').');
-    return;
-  }
+  const dateISO = document.getElementById('avenant-date').value;
+  if (!dateISO) { alert('Indique une date valide.'); return; }
 
   const type = document.getElementById('avenant-type').value;
   const mode = document.getElementById('avenant-mode').value;
+  const editingId = avenantModalEditId;
 
-  const avenant = { id: Date.now(), date, type };
+  const avenant = { id: editingId != null ? editingId : Date.now(), dateISO, type };
   if (type === 'remb_anticipe') {
     const montant = parseFloat(document.getElementById('avenant-montant').value.replace(',', '.'));
     if (!montant || montant <= 0) { alert('Indique un montant valide.'); return; }
@@ -2102,15 +2251,16 @@ function submitAvenant() {
   } else if (type === 'deblocage') {
     const montant = parseFloat(document.getElementById('avenant-montant').value.replace(',', '.'));
     if (!montant || montant <= 0) { alert('Indique un montant valide.'); return; }
-    // Garde-fou : impossible de débloquer plus que l'enveloppe totale du prêt.
+    // Garde-fou : impossible de débloquer plus que l'enveloppe totale du prêt
+    // (l'avenant en cours d'édition ne compte pas dans son propre total déjà débloqué).
     const enveloppe = parseFloat(loan.montant) || 0;
     const dejaDebloque = (loan.avenants || [])
-      .filter(a => a.type === 'deblocage')
+      .filter(a => a.type === 'deblocage' && a.id !== editingId)
       .reduce((s, a) => s + (parseFloat(a.montant) || 0), 0);
     if (enveloppe > 0 && dejaDebloque + montant > enveloppe + 0.5) {
       alert(
         'Ce déblocage dépasserait l\'enveloppe totale du prêt.\n\n' +
-        'Déjà débloqué : ' + eurP(dejaDebloque) + ' / ' + eurP(enveloppe) + '\n' +
+        'Déjà débloqué (hors cet avenant) : ' + eurP(dejaDebloque) + ' / ' + eurP(enveloppe) + '\n' +
         'Il reste au maximum ' + eurP(Math.max(0, enveloppe - dejaDebloque)) + ' à débloquer.'
       );
       return;
@@ -2128,10 +2278,15 @@ function submitAvenant() {
   }
   // type === 'debut_capital' : rien d'autre à saisir, juste la date de bascule
 
-  loan.avenants.push(avenant);
+  if (editingId != null) {
+    const i = loan.avenants.findIndex(a => a.id === editingId);
+    if (i >= 0) loan.avenants[i] = avenant; else loan.avenants.push(avenant);
+  } else {
+    loan.avenants.push(avenant);
+  }
   closeAvenantModal();
   renderRemb();
-  showSaveStatus('✓ Avenant ajouté (pense à sauvegarder 💾)', false);
+  showSaveStatus(editingId != null ? '✓ Avenant modifié (pense à sauvegarder 💾)' : '✓ Avenant ajouté (pense à sauvegarder 💾)', false);
 }
 async function deleteAvenant(loanId, avenantId) {
   const loan = remb.find(l => l.id === loanId);
@@ -2199,7 +2354,7 @@ function getLoanStats(loan) {
       // échéance non traitée (pas la dernière) : une seule notion de "mensualité
       // actuelle" qui évolue au fil des avenants et des cases cochées — plus de
       // distinction "initiale / majorée / réduite".
-      if (mensActuelle === null) { mensActuelle = r.mens; assuranceActuelle = r.assurance || 0; phaseActuelle = r.phase; capitalRestantDu = r.capitalAvant; }
+      if (mensActuelle === null) { mensActuelle = r.mens; assuranceActuelle = r.assurance || 0; phaseActuelle = r.phase; capitalRestantDu = r.capitalRestantTotal; }
     }
   });
   if (mensActuelle === null) mensActuelle = rows.length ? rows[rows.length - 1].mens : 0; // tout est traité : garde la dernière valeur connue
@@ -2210,7 +2365,7 @@ function getLoanStats(loan) {
   // intercalaires). S'il ne reste plus aucune échéance non traitée, on prend le
   // capital final du tableau (0€ si le prêt est intégralement amorti, ou le
   // capital tel qu'il est resté si le prêt est toujours en différé).
-  if (capitalRestantDu === null) capitalRestantDu = rows.capitalFinal != null ? rows.capitalFinal : 0;
+  if (capitalRestantDu === null) capitalRestantDu = rows.capitalFinalTotal != null ? rows.capitalFinalTotal : 0;
   const mensActuelleTotale = mensActuelle + assuranceActuelle; // banque + assurance, utilisé uniquement pour le total global
   const isOngoing = rows.length > 0 && traiteesGlobal < rows.length; // encore des mensualités à venir, TOUTES phases confondues (différé inclus)
   const enDiffere = phaseActuelle === 'interet_seul'; // actuellement en phase "intérêts seuls" (construction)
@@ -2297,11 +2452,7 @@ function renderGlobalSummary() {
   if (progBar) progBar.style.width = pctDone + '%';
 }
 
-// Tableau unique groupé par ANNÉE CIVILE (janvier → décembre), une ligne par
-// prêt actif cette année-là. Les 12 colonnes sont toujours calées sur
-// janvier-décembre : si le projet démarre en cours d'année (ex: octobre), les
-// mois avant le démarrage (janvier à septembre) apparaissent en cases vides
-// non cliquables, et seuls octobre/novembre/décembre sont de vraies cases.
+// Tableau unique groupé par année, une ligne par prêt actif cette année-là
 function renderAmortTable() {
   const container = document.getElementById('amort-years');
   if (!container) return;
@@ -2311,14 +2462,59 @@ function renderAmortTable() {
   const schedules = new Map();
   remb.forEach(l => schedules.set(l.id, computeAmortSchedule(l)));
   const constructionMonths = Math.max(0, Math.round(dureeConstructionMois || 0));
-  const maxLen = Math.max(0, ...remb.map(l => schedules.get(l.id).length || 0));
-  if (!maxLen) return;
 
-  if (!projectStartDate) {
-    // Repli : pas de date de démarrage renseignée -> impossible de caler sur
-    // le calendrier civil, on garde l'ancien découpage par blocs de 12 mois
-    // relatifs au prêt (mois 1 = premier mois du prêt, sans lien au calendrier).
-    const maxYears = Math.ceil(maxLen / 12);
+  // Aide : génère le HTML des cellules d'une ligne de prêt pour 12 colonnes,
+  // où colToLoanIdx(c) renvoie l'index de mois du prêt (0-based) correspondant
+  // à la colonne c (0-11), ou null si hors plage (avant démarrage / prêt fini).
+  function buildCellsHtml(loan, rows, colToLoanIdx) {
+    let cells = '';
+    for (let c = 0; c < 12; c++) {
+      const idx = colToLoanIdx(c);
+      if (idx === null || idx < 0 || idx >= rows.length) { cells += '<div class="amort-cell empty-slot"></div>'; continue; }
+      const state = loan.checked[idx] || 0;
+      const isConstruction = idx < constructionMonths && rows[idx].phase === 'interet_seul';
+      const cls = (state === 1 ? ' paid' : (state === 2 ? ' skip' : '')) + (isConstruction ? ' construction' : '');
+      cells += '<div class="amort-cell' + cls + '" id="amort-cell-' + loan.id + '-' + idx + '" ' +
+        'onclick="cycleMonth(' + loan.id + ',' + idx + ')" title="Mois ' + (idx + 1) + (isConstruction ? ' — différé' : '') + '"></div>';
+    }
+    return cells;
+  }
+
+  if (projetStartDate) {
+    // ── Grille alignée sur les vrais mois calendaires (Jan-Déc) ──
+    const startDate = new Date(projetStartDate + 'T00:00:00');
+    const startYear = startDate.getFullYear();
+    const startMonthIdx0 = startDate.getMonth(); // 0 = janvier
+    const maxLoanMonthIdx = Math.max(0, ...remb.map(l => (schedules.get(l.id).length || 1) - 1));
+    const endDate = addMonthsDate(projetStartDate, maxLoanMonthIdx);
+    const endYear = endDate.getFullYear();
+
+    for (let Y = startYear; Y <= endYear; Y++) {
+      const colToLoanIdx = c => (Y - startYear) * 12 + (c - startMonthIdx0);
+      const loansThisYear = remb.filter(loan => {
+        const rows = schedules.get(loan.id);
+        for (let c = 0; c < 12; c++) { const idx = colToLoanIdx(c); if (idx >= 0 && idx < rows.length) return true; }
+        return false;
+      });
+      if (!loansThisYear.length) continue;
+      const yearBlock = document.createElement('div');
+      yearBlock.className = 'amort-year-block';
+      let rowsHtml = '';
+      loansThisYear.forEach(loan => {
+        const colorIdx = remb.indexOf(loan);
+        const color = COLORS[colorIdx % COLORS.length];
+        const rows = schedules.get(loan.id);
+        const cells = buildCellsHtml(loan, rows, colToLoanIdx);
+        rowsHtml += '<div class="amort-row" style="--accent:' + color + '">' +
+          '<div class="amort-row-label">' + esc(loan.label || 'Prêt') + '</div>' +
+          '<div class="amort-row-cells">' + cells + '</div></div>';
+      });
+      yearBlock.innerHTML = '<div class="amort-year-title">ANNÉE ' + (Y - startYear + 1) + ' — ' + Y + '</div>' + rowsHtml;
+      container.appendChild(yearBlock);
+    }
+  } else {
+    // ── Repli sans date de démarrage : grille générique "mois 1-12 du prêt" ──
+    const maxYears = Math.max(0, ...remb.map(l => Math.ceil((schedules.get(l.id).length || 0) / 12)));
     for (let y = 0; y < maxYears; y++) {
       const loansThisYear = remb.filter(l => y * 12 < (schedules.get(l.id).length || 0));
       if (!loansThisYear.length) continue;
@@ -2329,66 +2525,14 @@ function renderAmortTable() {
         const colorIdx = remb.indexOf(loan);
         const color = COLORS[colorIdx % COLORS.length];
         const rows = schedules.get(loan.id);
-        const n = rows.length || 0;
-        let cells = '';
-        for (let m = 0; m < 12; m++) {
-          const idx = y * 12 + m;
-          if (idx >= n) { cells += '<div class="amort-cell empty-slot"></div>'; continue; }
-          const state = loan.checked[idx] || 0;
-          const isConstruction = idx < constructionMonths && rows[idx].phase === 'interet_seul';
-          const cls = (state === 1 ? ' paid' : (state === 2 ? ' skip' : '')) + (isConstruction ? ' construction' : '');
-          cells += '<div class="amort-cell' + cls + '" id="amort-cell-' + loan.id + '-' + idx + '" ' +
-            'onclick="cycleMonth(' + loan.id + ',' + idx + ')" title="Mois ' + (idx + 1) + (isConstruction ? ' — différé' : '') + '"></div>';
-        }
+        const cells = buildCellsHtml(loan, rows, c => y * 12 + c);
         rowsHtml += '<div class="amort-row" style="--accent:' + color + '">' +
           '<div class="amort-row-label">' + esc(loan.label || 'Prêt') + '</div>' +
           '<div class="amort-row-cells">' + cells + '</div></div>';
       });
-      yearBlock.innerHTML = '<div class="amort-year-title">ANNÉE ' + (y + 1) + ' <span style="opacity:.6;font-weight:400">(renseigne la date de démarrage du projet pour un calage sur le calendrier civil)</span></div>' + rowsHtml;
+      yearBlock.innerHTML = '<div class="amort-year-title">ANNÉE ' + (y + 1) + '</div>' + rowsHtml;
       container.appendChild(yearBlock);
     }
-    return;
-  }
-
-  const [sy, sm] = projectStartDate.split('-').map(Number);
-  const lastCal = calendarMonthForIndex(maxLen - 1);
-  const endYear = lastCal.y;
-  for (let y = sy; y <= endYear; y++) {
-    // Index de mois (relatif au prêt) correspondant à chaque colonne janvier→décembre de cette année civile
-    const monthsThisYear = [];
-    for (let m = 1; m <= 12; m++) monthsThisYear.push((y - sy) * 12 + (m - sm));
-    const loansThisYear = remb.filter(l => monthsThisYear.some(idx => idx >= 0 && idx < (schedules.get(l.id).length || 0)));
-    if (!loansThisYear.length) continue;
-    const yearBlock = document.createElement('div');
-    yearBlock.className = 'amort-year-block';
-    let rowsHtml = '';
-    loansThisYear.forEach(loan => {
-      const colorIdx = remb.indexOf(loan);
-      const color = COLORS[colorIdx % COLORS.length];
-      const rows = schedules.get(loan.id);
-      const n = rows.length || 0;
-      let cells = '';
-      monthsThisYear.forEach((idx, mZero) => {
-        const m = mZero + 1;
-        if (idx < 0 || idx >= n) { cells += '<div class="amort-cell empty-slot"></div>'; return; }
-        const state = loan.checked[idx] || 0;
-        // Teinte "construction" seulement si on est encore dans la fenêtre
-        // globale ET que ce prêt est réellement encore en phase différé à ce
-        // mois-là (dès qu'un avenant "fin différé" est ajouté, cette phase
-        // s'arrête réellement à SA date, indépendamment de la fenêtre globale).
-        const isConstruction = idx < constructionMonths && rows[idx].phase === 'interet_seul';
-        const cls = (state === 1 ? ' paid' : (state === 2 ? ' skip' : '')) + (isConstruction ? ' construction' : '');
-        const title = formatMonthFR(y, m) + (isConstruction ? ' — différé' : '');
-        cells += '<div class="amort-cell' + cls + '" id="amort-cell-' + loan.id + '-' + idx + '" ' +
-          'onclick="cycleMonth(' + loan.id + ',' + idx + ')" title="' + esc(title) + '"></div>';
-      });
-      rowsHtml += '<div class="amort-row" style="--accent:' + color + '">' +
-        '<div class="amort-row-label">' + esc(loan.label || 'Prêt') + '</div>' +
-        '<div class="amort-row-cells">' + cells + '</div></div>';
-    });
-    const yearLabel = 'ANNÉE ' + (y - sy + 1) + ' — ' + y;
-    yearBlock.innerHTML = '<div class="amort-year-title">' + esc(yearLabel) + '</div>' + rowsHtml;
-    container.appendChild(yearBlock);
   }
 }
 
@@ -2400,12 +2544,16 @@ function renderRemb() {
   remb.forEach((loan, i) => {
     ensureCheckedLength(loan);
     const color = COLORS[i % COLORS.length];
-    const avenantsSorted = (loan.avenants || []).slice().sort((a, b) => monthIndexFromStart(a.date) - monthIndexFromStart(b.date));
+    const avenantsSorted = (loan.avenants || []).slice().sort((a, b) => {
+      const ka = a.dateISO || ('9999-' + String((a.annee||0)*12+(a.moisDansAnnee||0)).padStart(6,'0'));
+      const kb = b.dateISO || ('9999-' + String((b.annee||0)*12+(b.moisDansAnnee||0)).padStart(6,'0'));
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
     const avenantsHtml = avenantsSorted.length
       ? avenantsSorted.map(av =>
-          '<div class="avenant-item">' +
+          '<div class="avenant-item" onclick="openAvenantModal(' + loan.id + ',' + av.id + ')" title="Cliquer pour modifier">' +
             '<span>' + esc(describeAvenant(av)) + '</span>' +
-            '<button class="avenant-del" onclick="deleteAvenant(' + loan.id + ',' + av.id + ')">×</button>' +
+            '<button class="avenant-del" onclick="event.stopPropagation();deleteAvenant(' + loan.id + ',' + av.id + ')">×</button>' +
           '</div>'
         ).join('')
       : '<div class="avenant-empty">Aucun avenant pour ce prêt</div>';
@@ -2444,11 +2592,18 @@ function renderRemb() {
             'oninput="this.value=this.value.replace(/[^0-9.,]/g,\'\')" />' +
           '<span class="input-unit">%/an</span></div>' +
       '</div>' +
-      '<label class="loan-differe-toggle" style="margin-top:2px">' +
-        '<input type="checkbox" id="remb-assurance-degressive-' + loan.id + '" ' + (loan.assuranceDegressive ? 'checked' : '') + ' ' +
-          'onchange="toggleAssuranceDegressive(' + loan.id + ', this.checked)" />' +
-        '<span>📉 Assurance dégressive (calculée sur le capital restant dû, pas le capital initial)</span>' +
-      '</label>' +
+      '<div class="mode-row">' +
+        '<span class="loan-input-label" style="flex:1">📋 Paliers de mensualité (optionnel)</span>' +
+        '<button class="btn-gear" id="remb-mode-gear-' + loan.id + '" onclick="openEcheancierModal(' + loan.id + ',\'capital\')" title="Configurer les paliers">⚙️ ' +
+          (loan.echeancierRanges && loan.echeancierRanges.length ? loan.echeancierRanges.length + ' palier' + (loan.echeancierRanges.length>1?'s':'') : 'Configurer') +
+        '</button>' +
+      '</div>' +
+      '<div class="mode-row">' +
+        '<span class="loan-input-label" style="flex:1">🛡️ Paliers d\'assurance (optionnel)</span>' +
+        '<button class="btn-gear" id="remb-assurance-gear-' + loan.id + '" onclick="openEcheancierModal(' + loan.id + ',\'assurance\')" title="Configurer les paliers d\'assurance">⚙️ ' +
+          (loan.assuranceRanges && loan.assuranceRanges.length ? loan.assuranceRanges.length + ' palier' + (loan.assuranceRanges.length>1?'s':'') : 'Configurer') +
+        '</button>' +
+      '</div>' +
       '<button class="btn-validate-remb" onclick="validateRembFields(' + loan.id + ')">✓ Valider les modifications</button>' +
       '<div class="remb-summary-grid" id="remb-summary-' + loan.id + '"></div>' +
       '<div class="avenant-actions">' +
@@ -2497,7 +2652,7 @@ function customConfirm(message, title) {
 const SAVE_KEY = 'simulateur-immo-v1';
 
 async function saveLocal() {
-  const data = { loans, nextId, duree, apport, SECTIONS, remb, nextRembId, dureeConstructionMois, projectStartDate, savedAt: Date.now() };
+  const data = { loans, nextId, duree, apport, SECTIONS, remb, nextRembId, dureeConstructionMois, projetStartDate, savedAt: Date.now() };
   // Copie locale de secours (permet de retomber sur ses pattes hors-ligne)
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) { /* tant pis, la sync en ligne prime */ }
 
@@ -2524,8 +2679,8 @@ function loadLocal() {
     if (Array.isArray(data.remb))    remb    = data.remb;
     if (typeof data.nextRembId === 'number') nextRembId = data.nextRembId;
     if (typeof data.dureeConstructionMois === 'number') dureeConstructionMois = data.dureeConstructionMois;
-    else if (typeof data.dureeConstructionAns === 'number') dureeConstructionMois = data.dureeConstructionAns * 12; // migration ancien champ (années)
-    if (typeof data.projectStartDate === 'string') projectStartDate = data.projectStartDate;
+    else if (typeof data.dureeConstructionAns === 'number') dureeConstructionMois = data.dureeConstructionAns * 12; // migration ancien format (années)
+    if (typeof data.projetStartDate === 'string') projetStartDate = data.projetStartDate;
     // Sécurité nextId
     if (loans.length && loans.some(l=>l.id>=nextId)) nextId = Math.max(...loans.map(l=>l.id))+1;
     if (remb.length && remb.some(l=>l.id>=nextRembId)) nextRembId = Math.max(...remb.map(l=>l.id))+1;
@@ -2546,7 +2701,7 @@ function loadLocal() {
 // PARTAGE (fichier .json ou lien)
 // ══════════════════════════════════════════
 function getShareData() {
-  return { loans, nextId, duree, apport, SECTIONS, remb, nextRembId, dureeConstructionMois, projectStartDate, savedAt: Date.now() };
+  return { loans, nextId, duree, apport, SECTIONS, remb, nextRembId, dureeConstructionMois, projetStartDate, savedAt: Date.now() };
 }
 
 function applyImportedData(data) {
@@ -2558,8 +2713,8 @@ function applyImportedData(data) {
   if (Array.isArray(data.remb))    remb    = data.remb;
   if (typeof data.nextRembId === 'number') nextRembId = data.nextRembId;
   if (typeof data.dureeConstructionMois === 'number') dureeConstructionMois = data.dureeConstructionMois;
-  else if (typeof data.dureeConstructionAns === 'number') dureeConstructionMois = data.dureeConstructionAns * 12; // migration ancien champ (années)
-  if (typeof data.projectStartDate === 'string') projectStartDate = data.projectStartDate;
+  else if (typeof data.dureeConstructionAns === 'number') dureeConstructionMois = data.dureeConstructionAns * 12; // migration ancien format (années)
+  if (typeof data.projetStartDate === 'string') projetStartDate = data.projetStartDate;
   if (loans.length && loans.some(l=>l.id>=nextId)) nextId = Math.max(...loans.map(l=>l.id))+1;
   if (remb.length && remb.some(l=>l.id>=nextRembId)) nextRembId = Math.max(...remb.map(l=>l.id))+1;
 }
@@ -2751,9 +2906,8 @@ function cancelPasswordPrompt() {
 function refreshAfterImport() {
   const dcInput = document.getElementById('duree-construction-input');
   if (dcInput) dcInput.value = dureeConstructionMois || '';
-  const psdInput = document.getElementById('project-start-date');
-  if (psdInput) psdInput.value = projectStartDate || '';
-  renderProjectStartHint();
+  const psInput = document.getElementById('projet-start-date');
+  if (psInput) psInput.value = projetStartDate || '';
   const slider = document.getElementById('duree-slider');
   if (slider) {
     slider.value = duree;
@@ -3037,9 +3191,8 @@ async function pullBackupFromDrive() {
   (function() {
     const dcInput = document.getElementById('duree-construction-input');
     if (dcInput) dcInput.value = dureeConstructionMois || '';
-    const psdInput = document.getElementById('project-start-date');
-    if (psdInput) psdInput.value = projectStartDate || '';
-    renderProjectStartHint();
+    const psInput = document.getElementById('projet-start-date');
+    if (psInput) psInput.value = projetStartDate || '';
   })();
   renderLoans();
   renderBudget();
