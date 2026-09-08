@@ -45,7 +45,8 @@ body{min-height:100vh;background:#0d1117;font-family:-apple-system,BlinkMacSyste
 
 .loans{display:flex;flex-direction:column;gap:10px}
 .loan-card{background:#1c2230;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;border:1px solid #ffffff10;border-left:3px solid var(--accent)}
-.loan-header{display:flex;justify-content:space-between;align-items:center}
+.loan-header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.loan-header-actions{display:flex;align-items:center;gap:16px;flex-shrink:0}
 .loan-label{background:transparent;border:none;outline:none;font-weight:700;font-size:.9rem;letter-spacing:.5px;color:var(--accent);width:70%;font-family:inherit}
 .btn-remove{background:#ffffff10;border:none;color:#888;cursor:pointer;border-radius:6px;padding:4px 10px;font-size:1.1rem;line-height:1}
 .loan-inputs{display:flex;gap:8px}
@@ -219,7 +220,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 .btn-pdf-budget:hover{background:#111f14;border-color:#3fb95099}
 
 /* ── MOVE BUTTONS (réorganisation prêts) ── */
-.loan-move-btns{display:flex;gap:2px;margin-right:4px}
+.loan-move-btns{display:flex;gap:3px}
 .btn-move{background:rgba(255,255,255,.06);border:none;color:#556;cursor:pointer;border-radius:5px;padding:4px 8px;font-size:.75rem;line-height:1.2;transition:background .15s,color .15s;font-family:inherit}
 .btn-move:not(:disabled):hover{background:rgba(255,255,255,.15);color:#aab}
 .btn-move:disabled{opacity:.15;cursor:default}
@@ -299,6 +300,13 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 .duree-construction-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;font-size:.72rem;color:#8b949e}
 .duree-construction-row .input-wrap{width:90px;flex:none}
 .project-start-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;font-size:.75rem;color:#c9d1d9;background:#0d1f3c;border:1px solid #4f8ef730;border-radius:10px;padding:12px 14px}
+.differe-global-block{background:#1a1030;border:1px solid #a04ff730;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.differe-global-hint{font-size:.68rem;color:#8b949e;line-height:1.5;margin-bottom:10px}
+.fin-differe-affected{font-size:.7rem;color:#c9d1d9;background:#0d1117;border:1px solid #ffffff14;border-radius:8px;padding:8px 10px;margin:8px 0}
+.differe-card-info{background:#1a1030;border:1px solid #a04ff730;border-radius:8px;padding:8px 10px;margin-top:8px}
+.differe-card-row{display:flex;justify-content:space-between;font-size:.72rem;color:#8b949e;padding:2px 0}
+.differe-card-row b{color:#e6edf3;font-variant-numeric:tabular-nums}
+.differe-card-note{font-size:.65rem;color:#7a5a9a;line-height:1.5;margin-top:6px;padding-top:6px;border-top:1px solid #ffffff0f;font-style:italic}
 .project-start-row input[type=date]{background:#0d1117;border:1px solid #4f8ef744;border-radius:8px;color:#e6edf3;padding:8px 10px;font-family:inherit;font-size:.82rem;outline:none;color-scheme:dark}
 .share-modal input[type=date]{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;padding:10px 12px;font-family:inherit;font-size:.9rem;outline:none;color-scheme:dark;box-sizing:border-box}
 .avenant-item{cursor:pointer}
@@ -326,6 +334,24 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
 .avenant-item:last-child{border-bottom:none}
 .avenant-del{background:none;border:none;color:#f77a6a;font-size:1rem;cursor:pointer;line-height:1;padding:2px 6px;flex-shrink:0}
 .avenant-empty{font-size:.68rem;color:#556;padding:8px 4px;font-style:italic}
+
+/* ── CARTE PRÊT RÉDUITE (résumé compact) ── */
+.remb-collapsed-summary{padding:2px 0}
+.remb-collapsed-row{display:flex;justify-content:space-between;align-items:center;padding:6px 2px;font-size:.74rem;color:#8b949e;border-bottom:1px solid rgba(255,255,255,.05)}
+.remb-collapsed-row:last-child{border-bottom:none}
+.remb-collapsed-row b{color:#e6edf3;font-variant-numeric:tabular-nums;font-size:.8rem}
+.remb-collapsed-phase{font-size:.68rem;color:#4f8ef7;padding:4px 2px 8px;font-weight:600}
+.btn-collapse{background:rgba(255,255,255,.06);border:none;color:#556;cursor:pointer;border-radius:5px;padding:4px 8px;font-size:.75rem;line-height:1.2;font-family:inherit;flex-shrink:0}
+.btn-collapse:hover{background:rgba(255,255,255,.15);color:#aab}
+
+/* ── ÉCHÉANCIER GLOBAL (tableau cumulé) ── */
+.eg-table{width:100%;border-collapse:collapse;font-size:.72rem}
+.eg-table th{padding:8px 6px;text-align:right;color:#8b949e;font-weight:600;background:#1c2230;position:sticky;top:0}
+.eg-table th:first-child{text-align:left}
+.eg-table td{padding:7px 6px;text-align:right;color:#e6edf3;font-variant-numeric:tabular-nums;border-top:1px solid rgba(255,255,255,.06)}
+.eg-table td:first-child{text-align:left;color:#c9d1d9}
+.eg-table td.eg-total{color:#4f8ef7;font-weight:700}
+.eg-table-wrap{overflow-x:auto;max-height:60vh;overflow-y:auto;margin-top:4px}
 .avenant-form-row{display:flex;gap:8px}
 .avenant-form-row .input-wrap{flex:1}
 #avenant-modal select{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:8px;padding:10px 12px;font-size:.85rem;font-family:inherit;width:100%;box-sizing:border-box}
@@ -512,6 +538,31 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
   </div>
 </div>
 
+<!-- MODALE ÉCHÉANCIER GLOBAL (vue cumulée de tous les prêts, par palier) -->
+<div id="echeancier-global-modal" class="share-modal-overlay" onclick="if(event.target===this) closeEcheancierGlobalModal()">
+  <div class="share-modal" style="max-width:640px">
+    <h3>📊 Échéancier Global</h3>
+    <p class="share-modal-desc">Vue cumulée de tous tes prêts, regroupée par palier de mensualité stable (comme le tableau échéancier de ta banque).</p>
+    <div id="echeancier-global-body"></div>
+    <button class="share-modal-btn secondary" onclick="closeEcheancierGlobalModal()">Fermer</button>
+  </div>
+</div>
+
+<!-- MODALE FIN DE DIFFÉRÉ (action globale : bascule tous les prêts concernés de "frais intercalaires" à "remboursement du capital") -->
+<div id="fin-differe-modal" class="share-modal-overlay" onclick="if(event.target===this) closeFinDiffereModal()">
+  <div class="share-modal">
+    <h3>🔑 Fin du différé</h3>
+    <p class="share-modal-desc" id="fin-differe-desc"></p>
+    <div class="fin-differe-affected" id="fin-differe-affected" style="display:none"></div>
+    <div class="input-wrap taux">
+      <input type="date" id="fin-differe-date" oninput="checkFinDiffereDate()">
+    </div>
+    <p class="share-modal-desc" id="fin-differe-warning" style="display:none;color:#f77a6a;margin-top:-2px"></p>
+    <button class="share-modal-btn" id="fin-differe-submit" onclick="submitFinDifferre()">✅ Déclarer la fin du différé</button>
+    <button class="share-modal-btn secondary" onclick="closeFinDiffereModal()">Annuler</button>
+  </div>
+</div>
+
 <!-- MODALE DE CONFIRMATION GÉNÉRIQUE -->
 <div id="confirm-modal" class="confirm-modal-overlay">
   <div class="confirm-modal">
@@ -665,6 +716,19 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
     <input type="date" id="projet-start-date" oninput="updateProjetStartDate(this.value)">
   </div>
 
+  <div class="differe-global-block">
+    <div class="duree-construction-row" style="margin-bottom:8px">
+      <span>🏗️ Différé max autorisé</span>
+      <div class="input-wrap taux">
+        <input type="text" inputmode="numeric" id="duree-construction-input" value="" placeholder="36"
+          oninput="this.value=this.value.replace(/[^0-9]/g,''); updateDureeConstruction(this.value)">
+        <span class="input-unit">mois</span>
+      </div>
+    </div>
+    <p class="differe-global-hint">Pendant cette phase, chaque prêt en différé ne paie que des frais intercalaires (intérêts sur le capital déjà débloqué). Enregistre chaque déblocage via ➕ Avenant → 🏗️ Déblocage sur le prêt concerné, puis déclare la fin du différé ici une fois la construction terminée.</p>
+    <button class="btn-avenant" style="width:100%" onclick="openFinDiffereModal()">🔑 Déclarer la fin du différé (tous les prêts concernés)</button>
+  </div>
+
   <div class="loans" id="remb-list"></div>
   <button class="btn-add" onclick="addRemb()">+ AJOUTER UN PRÊT</button>
 
@@ -684,6 +748,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
       <span>📅 Mensualité totale à payer / mois</span>
       <b id="rgs-mensualite-totale">0 €</b>
     </div>
+    <button class="btn-validate-remb" style="margin-top:14px" onclick="openEcheancierGlobalModal()">📊 Échéancier Global</button>
   </div>
 
   <div class="gsheet-export">
@@ -709,14 +774,6 @@ input[type=number]::-webkit-inner-spin-button{opacity:.3}
     <span><i class="amort-cell-sample construction"></i> Différé (construction)</span>
   </div>
   <h3 class="amort-table-title">📊 Tableau d'amortissement</h3>
-  <div class="duree-construction-row">
-    <span>🏗️ Durée de construction (repère visuel)</span>
-    <div class="input-wrap taux">
-      <input type="text" inputmode="numeric" id="duree-construction-input" value="" placeholder="0"
-        oninput="this.value=this.value.replace(/[^0-9]/g,''); updateDureeConstruction(this.value)">
-      <span class="input-unit">mois</span>
-    </div>
-  </div>
   <div class="amort-table-global" id="amort-years"></div>
 </div>
 </div>
@@ -1677,6 +1734,90 @@ function updateDureeConstruction(value) {
   renderAmortTable();
 }
 
+// ══════════════════════════════════════════
+// FIN DE DIFFÉRÉ (action globale) : bascule en un seul geste tous les prêts
+// actuellement "avec différé" de la phase "frais intercalaires" vers le
+// remboursement du capital, à une date unique — plutôt que d'avoir à ajouter
+// un avenant "fin de différé" prêt par prêt. Un seul avenant debut_capital
+// par prêt est maintenu (les éventuels doublons précédents sont remplacés).
+// ══════════════════════════════════════════
+function loansEnDiffere() {
+  return remb.filter(l => { ensureAvenants(l); return l.differe; });
+}
+
+function openFinDiffereModal() {
+  const desc = document.getElementById('fin-differe-desc');
+  const affected = document.getElementById('fin-differe-affected');
+  const dateInput = document.getElementById('fin-differe-date');
+  const warn = document.getElementById('fin-differe-warning');
+  const submitBtn = document.getElementById('fin-differe-submit');
+  warn.style.display = 'none';
+
+  const loans = loansEnDiffere();
+  if (!loans.length) {
+    desc.textContent = 'Aucun prêt n\'est actuellement marqué "🏗️ Prêt avec différé (construction)". Coche cette case sur un prêt pour pouvoir déclarer la fin de son différé.';
+    affected.style.display = 'none';
+    dateInput.style.display = 'none';
+    submitBtn.style.display = 'none';
+  } else {
+    desc.textContent = 'À partir de cette date, le remboursement du capital démarre pour chaque prêt ci-dessous (à la place des frais intercalaires). Une durée d\'amortissement identique à la durée totale du prêt s\'applique ensuite normalement.';
+    affected.style.display = '';
+    affected.innerHTML = loans.map(l => {
+      const already = (l.avenants || []).find(a => a.type === 'debut_capital');
+      return '🏗️ ' + esc(l.label || 'Prêt') + (already ? ' <span style="color:#8b949e">(déjà déclarée au ' + formatDateFR(already.dateISO) + ' — sera remplacée)</span>' : '');
+    }).join('<br>');
+    dateInput.style.display = '';
+    submitBtn.style.display = '';
+    let suggested = '';
+    const existing = loans.map(l => (l.avenants || []).find(a => a.type === 'debut_capital')).find(Boolean);
+    if (existing) {
+      suggested = existing.dateISO;
+    } else if (projetStartDate) {
+      const capMonths = dureeConstructionMois > 0 ? dureeConstructionMois : 36;
+      suggested = addMonthsDate(projetStartDate, capMonths).toISOString().slice(0, 10);
+    }
+    dateInput.value = suggested;
+    checkFinDiffereDate();
+  }
+  document.getElementById('fin-differe-modal').classList.add('show');
+}
+
+function checkFinDiffereDate() {
+  const dateISO = document.getElementById('fin-differe-date').value;
+  const warn = document.getElementById('fin-differe-warning');
+  if (!dateISO || !projetStartDate) { warn.style.display = 'none'; return; }
+  const capMonths = dureeConstructionMois > 0 ? dureeConstructionMois : 36;
+  const maxDate = addMonthsDate(projetStartDate, capMonths);
+  const chosen = new Date(dateISO + 'T00:00:00');
+  if (chosen > maxDate) {
+    warn.textContent = '⚠️ Cette date dépasse le différé maximum autorisé (' + capMonths + ' mois, soit jusqu\'au ' + formatDateFR(maxDate.toISOString().slice(0, 10)) + '). Tu peux continuer si ta banque te l\'a exceptionnellement accordé.';
+    warn.style.display = '';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+function closeFinDiffereModal() {
+  document.getElementById('fin-differe-modal').classList.remove('show');
+}
+
+function submitFinDifferre() {
+  const dateISO = document.getElementById('fin-differe-date').value;
+  if (!dateISO) { alert('Indique une date valide.'); return; }
+  const loans = loansEnDiffere();
+  loans.forEach((loan, idx) => {
+    ensureAvenants(loan);
+    // Un seul avenant "debut_capital" par prêt : on retire l'éventuel ancien
+    // avant d'ajouter le nouveau, pour éviter les doublons qui décaleraient
+    // le calcul (deux transitions au lieu d'une).
+    loan.avenants = (loan.avenants || []).filter(a => a.type !== 'debut_capital');
+    loan.avenants.push({ id: Date.now() + idx, dateISO, type: 'debut_capital' });
+  });
+  closeFinDiffereModal();
+  renderRemb();
+  showSaveStatus('✓ Fin de différé déclarée le ' + formatDateFR(dateISO) + ' pour ' + loans.length + ' prêt(s) (pense à sauvegarder 💾)', false);
+}
+
 // États d'une case : 0 = vide (à venir) · 1 = payée · 2 = sautée
 // N'AGRANDIT le tableau que si besoin — ne le réduit jamais automatiquement (la
 // durée réelle d'un prêt à différé peut dépasser le champ "durée" nominal une
@@ -1698,6 +1839,22 @@ function ensureAvenants(loan) {
   if (loan.mode !== 'lineaire' && loan.mode !== 'echeancier') loan.mode = 'lineaire'; // champ hérité, plus utilisé (conservé pour compatibilité silencieuse avec d'anciennes sauvegardes)
   if (!Array.isArray(loan.echeancierRanges)) loan.echeancierRanges = [];
   if (!Array.isArray(loan.assuranceRanges)) loan.assuranceRanges = [];
+}
+
+// Nombre total de mensualités "effectif" d'un prêt, pour les avertissements
+// de durée (paliers, réduction de durée...). Pour un prêt SANS différé,
+// loan.duree est déjà la durée totale. Pour un prêt AVEC différé, loan.duree
+// ne couvre que l'amortissement après la fin du différé — la durée réelle du
+// différé est propre à chaque prêt (chantier commun + éventuel différé
+// complémentaire lié aux revenus pour un PTZ, par ex.) et n'est connue
+// qu'une fois l'avenant "fin de différé" posé sur CE prêt.
+function loanEffectiveTotalMonths(loan) {
+  const nominal = Math.max(0, Math.round((parseFloat(loan.duree) || 0) * 12));
+  if (!loan.differe) return nominal;
+  const debut = (loan.avenants || []).find(a => a.type === 'debut_capital');
+  if (!debut) return nominal; // pas encore déclaré : le nominal sert de repère provisoire
+  const atMonth = (debut.dateISO && projetStartDate) ? computeAvenantMonthIndex(projetStartDate, debut.dateISO) : (debut.atMonth || 0);
+  return atMonth + nominal;
 }
 
 // Migration : d'anciennes sauvegardes stockaient true/false au lieu de 0/1/2
@@ -1875,7 +2032,21 @@ function saveEcheancierModal() {
   closeEcheancierModal();
   renderRemb();
   const label = echeancierModalState.kind === 'assurance' ? 'Paliers d\'assurance' : 'Échéancier personnalisé';
-  showSaveStatus(parsed.length ? '✓ ' + label + ' enregistré (pense à sauvegarder 💾)' : '✓ Paliers supprimés (pense à sauvegarder 💾)', false);
+  // Avertit si un palier va au-delà de la durée totale EFFECTIVE de ce prêt
+  // (différé compris s'il y en a un) : au-delà de cette limite, le palier ne
+  // sera jamais appliqué — pas d'erreur silencieuse, on le dit.
+  const totalMois = loanEffectiveTotalMonths(loan);
+  const maxFin = parsed.length ? Math.max(...parsed.map(r => r.fin)) : 0;
+  if (maxFin > totalMois) {
+    showSaveStatus(
+      '⚠️ ' + label + ' enregistré, mais un palier va jusqu\'au mois ' + maxFin +
+      ' alors que la durée totale actuelle du prêt n\'est que de ' + totalMois +
+      ' mois — augmente la "Durée (années)" du prêt (ou déclare/ajuste sa fin de différé) puis valide pour que ce palier s\'applique en entier.',
+      false
+    );
+  } else {
+    showSaveStatus(parsed.length ? '✓ ' + label + ' enregistré (pense à sauvegarder 💾)' : '✓ Paliers supprimés (pense à sauvegarder 💾)', false);
+  }
 }
 
 // Valide les modifications de montant / durée / taux, avec protection anti-perte de données
@@ -1894,7 +2065,16 @@ async function validateRembFields(id) {
   const newDuree   = parseInt(dureeEl.value) || 0;
   const newTaux    = tauxEl.value.replace(',', '.');
   const newAssurance = assuranceEl ? assuranceEl.value.replace(',', '.') : loan.assuranceTaux;
-  const newN       = newDuree * 12;
+  // Pour un prêt EN DIFFÉRÉ, newDuree ne couvre que l'amortissement après la
+  // fin du différé — il faut rajouter le différé déjà écoulé (via l'avenant
+  // "fin de différé" déjà posé, s'il existe) pour obtenir la longueur RÉELLE
+  // du prêt, sinon on tronquerait à tort les mensualités cochées de la phase
+  // d'amortissement (au-delà du différé) lors d'une simple validation.
+  const debutAvenant = (loan.avenants || []).find(a => a.type === 'debut_capital');
+  const differeElapsed = (loan.differe && debutAvenant)
+    ? ((debutAvenant.dateISO && projetStartDate) ? computeAvenantMonthIndex(projetStartDate, debutAvenant.dateISO) : (debutAvenant.atMonth || 0))
+    : 0;
+  const newN       = differeElapsed + newDuree * 12;
   const oldN       = loan.checked.length;
 
   if (newN < oldN) {
@@ -1916,7 +2096,20 @@ async function validateRembFields(id) {
   loan.checked.length = newN; // troncature volontaire, confirmée ci-dessus si besoin
   ensureCheckedLength(loan); // ré-agrandit si newN > longueur actuelle
   renderRemb();
-  showSaveStatus('✓ Prêt mis à jour (pense à sauvegarder 💾)', false);
+  // Avertit si un palier existant (mensualité ou assurance) dépasse désormais
+  // la nouvelle durée totale EFFECTIVE (différé compris s'il y en a un).
+  const allRanges = [].concat(loan.echeancierRanges || [], loan.assuranceRanges || []);
+  const maxFin = allRanges.length ? Math.max(...allRanges.map(r => r.fin)) : 0;
+  const effectiveTotal = loanEffectiveTotalMonths(loan);
+  if (maxFin > effectiveTotal) {
+    showSaveStatus(
+      '✓ Prêt mis à jour — ⚠️ un palier configuré va jusqu\'au mois ' + maxFin +
+      ', au-delà de la durée totale actuelle (' + effectiveTotal + ' mois) : il ne s\'appliquera pas en entier.',
+      false
+    );
+  } else {
+    showSaveStatus('✓ Prêt mis à jour (pense à sauvegarder 💾)', false);
+  }
 }
 
 // Calcule l'échéancier mois par mois d'un prêt en tenant compte :
@@ -2036,8 +2229,13 @@ function computeAmortSchedule(loan) {
         // le montant contractuel dès le départ).
         capital = capital + (parseFloat(av.montant) || 0);
       } else if (av.type === 'debut_capital') {
-        // Fin du différé : à partir d'ici on rembourse le capital, sur la durée
-        // d'amortissement du prêt (loan.duree), qui démarre maintenant.
+        // Fin du différé : à partir d'ici on rembourse le capital. loan.duree
+        // (années) représente UNIQUEMENT la durée d'AMORTISSEMENT après la fin
+        // du différé — la durée du différé elle-même n'est jamais fixe : elle
+        // dépend uniquement de la date à laquelle cet avenant est déclaré
+        // (variable d'un prêt à l'autre, quelle qu'en soit la raison). Le
+        // nombre total de mensualités du prêt devient donc : i (mois déjà
+        // écoulés en différé au moment de l'avenant) + duree*12 (amortissement).
         mode = 'annuite';
         n = i + Math.max(1, Math.round((parseFloat(loan.duree) || 0) * 12));
       } else if (av.type === 'assurance') {
@@ -2369,9 +2567,13 @@ function getLoanStats(loan) {
   const mensActuelleTotale = mensActuelle + assuranceActuelle; // banque + assurance, utilisé uniquement pour le total global
   const isOngoing = rows.length > 0 && traiteesGlobal < rows.length; // encore des mensualités à venir, TOUTES phases confondues (différé inclus)
   const enDiffere = phaseActuelle === 'interet_seul'; // actuellement en phase "intérêts seuls" (construction)
-  // Montant déjà débloqué sur l'enveloppe totale (prêts à différé uniquement)
+  // Montant déjà débloqué sur l'enveloppe totale (prêts à différé uniquement) :
+  // ne compte QUE les déblocages dont la date réelle est déjà passée — un
+  // avenant créé à l'avance avec une date de déblocage future ne doit pas
+  // gonfler ce total tant que cette date n'est pas atteinte.
+  const todayISO = new Date().toISOString().slice(0, 10);
   const dejaDebloque = (loan.avenants || [])
-    .filter(a => a.type === 'deblocage')
+    .filter(a => a.type === 'deblocage' && (!a.dateISO || a.dateISO <= todayISO))
     .reduce((s, a) => s + (parseFloat(a.montant) || 0), 0);
   return {
     rows, mensActuelle, isOngoing, paye, interetPaye, capitalPaye,
@@ -2536,6 +2738,49 @@ function renderAmortTable() {
   }
 }
 
+// État UI uniquement (jamais sauvegardé / partagé) : id des prêts actuellement
+// affichés en mode DÉPLIÉ dans l'onglet Échéancier (vide par défaut → tous
+// les prêts démarrent réduits, pour une vue d'ensemble plus lisible).
+let expandedLoans = new Set();
+
+function toggleLoanCollapse(id) {
+  if (expandedLoans.has(id)) expandedLoans.delete(id); else expandedLoans.add(id);
+  renderRemb();
+}
+
+// Réordonne la liste des prêts de l'onglet Échéancier (indépendant de l'ordre
+// des prêts de l'onglet "Taux & Prêts").
+function moveRemb(id, dir) {
+  const i = remb.findIndex(l => l.id === id);
+  if (dir === 'up' && i > 0) { [remb[i-1], remb[i]] = [remb[i], remb[i-1]]; }
+  else if (dir === 'down' && i < remb.length - 1) { [remb[i], remb[i+1]] = [remb[i+1], remb[i]]; }
+  renderRemb();
+  showSaveStatus('✓ Ordre des prêts mis à jour (pense à sauvegarder 💾)', false);
+}
+
+// Résumé compact affiché quand un prêt est réduit : uniquement les infos clés,
+// dans l'ordre demandé (mensualité, phase, payé, capital dû, intérêts restants,
+// progression, déblocage le cas échéant).
+function buildCollapsedSummaryHtml(loan, st) {
+  const pctTraitees = st.totalCredit ? Math.round(st.traitees / st.totalCredit * 100) : 0;
+  const phaseNote = st.enDiffere ? '<div class="remb-collapsed-phase">🏗️ Phase différé (intérêts seuls)</div>' : '';
+  const deblocageRow = loan.differe
+    ? '<div class="remb-collapsed-row"><span>Débloqué</span><b>' + eurP(st.dejaDebloque) + ' / ' + eurP(parseFloat(loan.montant) || 0) + '</b></div>'
+    : '';
+  return (
+    '<div class="remb-collapsed-row"><span>Mensualité actuelle</span><b>' + eurP(st.mensActuelleTotale) + '</b></div>' +
+    phaseNote +
+    '<div class="remb-collapsed-summary">' +
+      '<div class="remb-collapsed-row"><span>Payé</span><b>' + eurP(st.paye + st.assurancePayee) + '</b></div>' +
+      '<div class="remb-collapsed-row"><span>Capital restant dû</span><b>' + eurP(st.capitalRestantDu) + '</b></div>' +
+      '<div class="remb-collapsed-row"><span>+ intérêts restants</span><b>' + eurP(st.interetRestant + st.assuranceRestante) + '</b></div>' +
+      '<div class="remb-collapsed-row"><span>Mensualités traitées</span><b>' + st.traitees + ' / ' + st.totalCredit + '</b></div>' +
+      '<div class="remb-collapsed-row"><span>Progression</span><b>' + pctTraitees + '% du crédit</b></div>' +
+      deblocageRow +
+    '</div>'
+  );
+}
+
 function renderRemb() {
   normalizeRembStates();
   const c = document.getElementById('remb-list');
@@ -2544,6 +2789,34 @@ function renderRemb() {
   remb.forEach((loan, i) => {
     ensureCheckedLength(loan);
     const color = COLORS[i % COLORS.length];
+    const isCollapsed = !expandedLoans.has(loan.id);
+    const isFirst = i === 0, isLast = i === remb.length - 1;
+    const moveBtnsHtml =
+      '<div class="loan-move-btns">' +
+        '<button class="btn-move" onclick="moveRemb(' + loan.id + ',\'up\')" ' + (isFirst?'disabled':'') + ' title="Monter">↑</button>' +
+        '<button class="btn-move" onclick="moveRemb(' + loan.id + ',\'down\')" ' + (isLast?'disabled':'') + ' title="Descendre">↓</button>' +
+      '</div>';
+    const collapseBtnHtml = '<button class="btn-collapse" onclick="toggleLoanCollapse(' + loan.id + ')" title="' +
+      (isCollapsed ? 'Agrandir' : 'Réduire') + '">' + (isCollapsed ? '▸' : '▾') + '</button>';
+    const removeBtnHtml = remb.length > 1 ? '<button class="btn-remove" onclick="removeRemb(' + loan.id + ')">×</button>' : '';
+    const actionsHtml = '<div class="loan-header-actions">' + moveBtnsHtml + collapseBtnHtml + removeBtnHtml + '</div>';
+
+    const d = document.createElement('div');
+    d.className = 'loan-card';
+    d.style.setProperty('--accent', color);
+
+    if (isCollapsed) {
+      const st = getLoanStats(loan);
+      d.innerHTML =
+        '<div class="loan-header">' +
+          '<div class="loan-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(loan.label || ('Prêt ' + (i+1))) + '</div>' +
+          actionsHtml +
+        '</div>' +
+        buildCollapsedSummaryHtml(loan, st);
+      c.appendChild(d);
+      return;
+    }
+
     const avenantsSorted = (loan.avenants || []).slice().sort((a, b) => {
       const ka = a.dateISO || ('9999-' + String((a.annee||0)*12+(a.moisDansAnnee||0)).padStart(6,'0'));
       const kb = b.dateISO || ('9999-' + String((b.annee||0)*12+(b.moisDansAnnee||0)).padStart(6,'0'));
@@ -2557,14 +2830,22 @@ function renderRemb() {
           '</div>'
         ).join('')
       : '<div class="avenant-empty">Aucun avenant pour ce prêt</div>';
-    const d = document.createElement('div');
-    d.className = 'loan-card';
-    d.style.setProperty('--accent', color);
+    const hasDebutCapital = (loan.avenants || []).some(a => a.type === 'debut_capital');
+    const stCard = loan.differe ? getLoanStats(loan) : null;
+    const differeInfoHtml = loan.differe
+      ? '<div class="differe-card-info">' +
+          '<div class="differe-card-row"><span>🏗️ Capital débloqué</span><b>' + eurP(stCard.dejaDebloque) + ' / ' + eurP(parseFloat(loan.montant) || 0) + '</b></div>' +
+          '<div class="differe-card-row"><span>Frais intercalaires actuels</span><b>' + eurP(stCard.mensActuelleTotale) + ' /mois</b></div>' +
+          (hasDebutCapital
+            ? ''
+            : '<div class="differe-card-note">Utilise ➕ Avenant → 🏗️ Déblocage pour chaque appel de fonds. Les paliers de mensualité ci-dessous ne s\'appliqueront qu\'une fois la fin du différé déclarée (bouton 🔑 en haut de l\'onglet).</div>') +
+        '</div>'
+      : '';
     d.innerHTML =
       '<div class="loan-header">' +
         '<input class="loan-label" type="text" placeholder="Prêt ' + (i+1) + '" value="' + esc(loan.label) + '" ' +
           'oninput="updateRemb(' + loan.id + ',\'label\',this.value)" />' +
-        (remb.length > 1 ? '<button class="btn-remove" onclick="removeRemb(' + loan.id + ')">×</button>' : '') +
+        actionsHtml +
       '</div>' +
       '<div class="loan-inputs">' +
         '<div class="input-wrap montant">' +
@@ -2592,11 +2873,14 @@ function renderRemb() {
             'oninput="this.value=this.value.replace(/[^0-9.,]/g,\'\')" />' +
           '<span class="input-unit">%/an</span></div>' +
       '</div>' +
+      differeInfoHtml +
       '<div class="mode-row">' +
         '<span class="loan-input-label" style="flex:1">📋 Paliers de mensualité (optionnel)</span>' +
-        '<button class="btn-gear" id="remb-mode-gear-' + loan.id + '" onclick="openEcheancierModal(' + loan.id + ',\'capital\')" title="Configurer les paliers">⚙️ ' +
-          (loan.echeancierRanges && loan.echeancierRanges.length ? loan.echeancierRanges.length + ' palier' + (loan.echeancierRanges.length>1?'s':'') : 'Configurer') +
-        '</button>' +
+        (loan.differe && !hasDebutCapital
+          ? '<span class="loan-input-label" style="color:#556;font-style:italic">indisponible pendant le différé</span>'
+          : '<button class="btn-gear" id="remb-mode-gear-' + loan.id + '" onclick="openEcheancierModal(' + loan.id + ',\'capital\')" title="Configurer les paliers">⚙️ ' +
+              (loan.echeancierRanges && loan.echeancierRanges.length ? loan.echeancierRanges.length + ' palier' + (loan.echeancierRanges.length>1?'s':'') : 'Configurer') +
+            '</button>') +
       '</div>' +
       '<div class="mode-row">' +
         '<span class="loan-input-label" style="flex:1">🛡️ Paliers d\'assurance (optionnel)</span>' +
@@ -2616,6 +2900,71 @@ function renderRemb() {
   });
   renderAmortTable();
   renderGlobalSummary();
+}
+
+// ══════════════════════════════════════════
+// ÉCHÉANCIER GLOBAL (vue cumulée de tous les prêts, regroupée par palier de
+// mensualité stable — dans l'esprit du tableau "Échéancier" fourni par la banque)
+// ══════════════════════════════════════════
+function vecEquals(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) { if (Math.abs(a[i] - b[i]) > 0.005) return false; }
+  return true;
+}
+
+// Calcule, pour chaque mois, la mensualité totale (banque + assurance) de
+// chaque prêt, puis regroupe les mois consécutifs où ce vecteur ne change pas
+// en "paliers" — exactement ce que montre le tableau échéancier d'une banque.
+function computeGlobalEcheancierTable() {
+  const schedules = remb.map(loan => ({ loan, rows: computeAmortSchedule(loan) }));
+  const maxLen = Math.max(0, ...schedules.map(s => s.rows.length));
+  const groups = [];
+  for (let i = 0; i < maxLen; i++) {
+    const vec = schedules.map(s => {
+      const r = s.rows[i];
+      return r ? Math.round((r.mens + (r.assurance || 0)) * 100) / 100 : 0;
+    });
+    const last = groups[groups.length - 1];
+    if (last && vecEquals(last.vec, vec)) { last.fin = i + 1; }
+    else { groups.push({ debut: i + 1, fin: i + 1, vec }); }
+  }
+  return { loans: schedules.map(s => s.loan), groups };
+}
+
+function openEcheancierGlobalModal() {
+  const body = document.getElementById('echeancier-global-body');
+  if (!body) return;
+  try {
+    const { loans: loansArr, groups } = computeGlobalEcheancierTable();
+    if (!loansArr.length || !groups.length) {
+      body.innerHTML = '<p class="share-modal-desc">Ajoute au moins un prêt dans l\'onglet Échéancier pour voir le tableau cumulé.</p>';
+    } else {
+      let html = '<div class="eg-table-wrap"><table class="eg-table"><thead><tr>' +
+        '<th>Période</th>' +
+        loansArr.map(l => '<th>' + esc(l.label || 'Prêt') + '</th>').join('') +
+        '<th>Echéances totales</th>' +
+        '</tr></thead><tbody>';
+      groups.forEach(g => {
+        const periode = g.debut === g.fin ? (g.debut + ' mois') : (g.debut + ' à ' + g.fin + ' mois');
+        const total = g.vec.reduce((s, v) => s + v, 0);
+        // Toujours afficher un montant explicite (0 € inclus) plutôt qu'un tiret :
+        // un prêt en différé sans capital encore débloqué (ou à 0%) doit rester
+        // clairement visible dans le tableau, pas disparaître visuellement.
+        html += '<tr><td>' + periode + '</td>' +
+          g.vec.map(v => '<td>' + eurP(v) + '</td>').join('') +
+          '<td class="eg-total">' + eurP(total) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      body.innerHTML = html;
+    }
+  } catch (err) {
+    console.warn('Erreur calcul échéancier global :', err);
+    body.innerHTML = '<p class="share-modal-desc" style="color:#f77a6a">⚠️ Erreur lors du calcul du tableau : ' + esc(err.message) + '</p>';
+  }
+  document.getElementById('echeancier-global-modal').classList.add('show');
+}
+function closeEcheancierGlobalModal() {
+  document.getElementById('echeancier-global-modal').classList.remove('show');
 }
 
 // ══════════════════════════════════════════
@@ -2990,6 +3339,32 @@ function setGsheetStatus(msg, cls) {
   el.className = 'gsheet-status ' + (cls || '');
 }
 
+// Libellé court d'un avenant, utilisé dans la colonne "Notes" de l'export Sheet
+function avenantShortLabel(av) {
+  if (av.type === 'remb_anticipe') return '💰 Remb. anticipé ' + eurP(av.montant);
+  if (av.type === 'deblocage')     return '🏗️ Déblocage ' + eurP(av.montant);
+  if (av.type === 'debut_capital') return '🔑 Fin de différé';
+  if (av.type === 'assurance')     return '🛡️ Assurance ' + av.nouvelleAssuranceTaux + '%/an';
+  if (av.type === 'taux')          return '📉 Taux ' + av.nouveauTaux + '%';
+  return 'Avenant';
+}
+
+// Construit un tableau de notes (une entrée par mois, chaîne vide si rien à
+// signaler) rassemblant les avenants d'un prêt à leur mois d'effet réel —
+// aligné sur le même index que "values"/"phases" pour l'export Sheet.
+function buildAvenantNotesByMonth(loan, numMonths) {
+  const notes = new Array(numMonths).fill('');
+  (loan.avenants || []).forEach(av => {
+    const atMonth = (av.dateISO && projetStartDate)
+      ? computeAvenantMonthIndex(projetStartDate, av.dateISO)
+      : (av.atMonth || 0);
+    if (atMonth < 0 || atMonth >= numMonths) return;
+    const label = avenantShortLabel(av);
+    notes[atMonth] = notes[atMonth] ? notes[atMonth] + ' + ' + label : label;
+  });
+  return notes;
+}
+
 // Construit le payload d'export : un instantané daté par prêt
 function buildGsheetPayload() {
   const key = document.getElementById('gsheet-key')?.value.trim() || '';
@@ -3003,6 +3378,9 @@ function buildGsheetPayload() {
     const values = st.rows.map(r => r.state === 1 ? Math.round((r.mens + (r.assurance || 0)) * 100) / 100 : null);
     // phase par mois : 'interet_seul' (construction) vs 'annuite'/'fixe' (remboursement du capital)
     const phases = st.rows.map(r => r.phase);
+    // note par mois : description des avenants prenant effet ce mois-là
+    // (déblocage, fin de différé, changement de taux/assurance, remb. anticipé…)
+    const notes = buildAvenantNotesByMonth(loan, st.rows.length);
     totalPaye += st.paye + st.assurancePayee;
     // "Intérêts" = intérêts + assurance partout, y compris dans l'export Sheet
     // (choix assumé : l'assurance est comptée comme faisant partie du coût des
@@ -3024,6 +3402,7 @@ function buildGsheetPayload() {
       label: loan.label || 'Prêt',
       values,
       phases,
+      notes,
       montantDebloque,
       montantTotal,
       mensActuelle: Math.round(st.mensActuelle * 100) / 100,
